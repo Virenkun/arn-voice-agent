@@ -8,10 +8,8 @@ import {
   Brain,
   ChevronLeft,
   ChevronRight,
-  CircleDollarSign,
   Database,
   FileText,
-  Home,
   Key,
   LogOut,
   type LucideIcon,
@@ -79,15 +77,6 @@ const TELEPHONY_WARNING_COPY = "Action required";
 
 const NAV_SECTIONS: SidebarNavSection[] = [
   {
-    items: [
-      {
-        title: "Overview",
-        url: "/overview",
-        icon: Home,
-      },
-    ],
-  },
-  {
     label: "BUILD",
     items: [
       {
@@ -140,11 +129,6 @@ const NAV_SECTIONS: SidebarNavSection[] = [
         title: "Agent Runs",
         url: "/usage",
         icon: TrendingUp,
-      },
-      {
-        title: "Billing",
-        url: "/billing",
-        icon: CircleDollarSign,
       },
       {
         title: "Reports",

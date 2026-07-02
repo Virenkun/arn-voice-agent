@@ -64,7 +64,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
         <ThemeProvider
           attribute="class"
@@ -81,7 +81,7 @@ export default function RootLayout({
                       <OnboardingProvider>
                         <PostHogIdentify />
                         <NextTopLoader
-                          color="#E9680C"
+                          color="#7C5CFF"
                           initialPosition={0.08}
                           crawlSpeed={200}
                           height={3}
@@ -89,7 +89,7 @@ export default function RootLayout({
                           showSpinner={true}
                           easing="ease"
                           speed={200}
-                          shadow="0 0 10px #E9680C,0 0 5px #E9680C"
+                          shadow="0 0 10px #7C5CFF,0 0 5px #7C5CFF"
                           template='<div class="bar" role="bar"><div class="peg"></div></div>
     <div class="spinner" role="spinner"><div class="spinner-icon"></div></div>'
                           zIndex={1600}

@@ -10,7 +10,6 @@ interface ApiKeyErrorDialogProps {
     onOpenChange: (open: boolean) => void;
     error: string | null;
     errorCode: string | null;
-    onNavigateToBilling: () => void;
     onNavigateToDevelopers: () => void;
     onNavigateToModelConfig: () => void;
 }
@@ -20,13 +19,11 @@ export const ApiKeyErrorDialog = ({
     onOpenChange,
     error,
     errorCode,
-    onNavigateToBilling,
     onNavigateToDevelopers,
     onNavigateToModelConfig,
 }: ApiKeyErrorDialogProps) => {
-    const isBillingCreditsError = errorCode === 'insufficient_credits';
     const isServiceKeyOrgMismatch = errorCode === 'service_key_org_mismatch';
-    const isQuotaError = isBillingCreditsError || errorCode === 'quota_exceeded';
+    const isQuotaError = errorCode === 'insufficient_credits' || errorCode === 'quota_exceeded';
 
     const title = isQuotaError
         ? "Insufficient Credits"
@@ -34,16 +31,12 @@ export const ApiKeyErrorDialog = ({
             ? "Service Token Account Mismatch"
             : "API Configuration Error";
     const icon = isQuotaError ? <CreditCard className="h-5 w-5 text-orange-500" /> : <Key className="h-5 w-5 text-red-500" />;
-    const buttonText = isBillingCreditsError
-        ? "Go to Billing"
-        : isServiceKeyOrgMismatch
-            ? "Go to Developers"
-            : "Go to Model Configurations";
-    const onNavigate = isBillingCreditsError
-        ? onNavigateToBilling
-        : isServiceKeyOrgMismatch
-            ? onNavigateToDevelopers
-            : onNavigateToModelConfig;
+    const buttonText = isServiceKeyOrgMismatch
+        ? "Go to Developers"
+        : "Go to Model Configurations";
+    const onNavigate = isServiceKeyOrgMismatch
+        ? onNavigateToDevelopers
+        : onNavigateToModelConfig;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -58,11 +51,6 @@ export const ApiKeyErrorDialog = ({
                             <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                             <div className="text-sm space-y-1">
                                 <p className="font-medium text-foreground">{error}</p>
-                                {isBillingCreditsError && (
-                                    <p className="text-muted-foreground">
-                                        Purchase credits from Billing to continue using Dograh-managed models.
-                                    </p>
-                                )}
                                 {isServiceKeyOrgMismatch && (
                                     <a
                                         href={SERVICE_KEYS_DOCS_URL}
