@@ -240,19 +240,7 @@ export function AppSidebar() {
           className={cn("relative", isCollapsed && "justify-center")}
           translate="no"
         >
-          {isItemActive && !isCollapsed && (
-            <span
-              className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-cta"
-              aria-hidden
-            />
-          )}
-          <Icon
-            className={cn(
-              "h-4 w-4 shrink-0",
-              isItemActive &&
-                "text-cta drop-shadow-[0_0_6px_rgba(240,170,70,0.8)]",
-            )}
-          />
+          <Icon className={cn("h-4 w-4 shrink-0")} />
           <span
             className={cn(
               "notranslate min-w-0 flex-1 truncate",

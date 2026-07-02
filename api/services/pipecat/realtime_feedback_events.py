@@ -1,5 +1,6 @@
 """Shared helpers for building and ordering realtime feedback events."""
 
+import json
 from typing import Any
 
 from pipecat.utils.enums import RealtimeFeedbackType
@@ -79,10 +80,20 @@ def build_function_call_start_event(
 
 
 def serialize_realtime_feedback_tool_result(result: Any) -> str | None:
-    """Normalize function-call results to the string shape stored in logs."""
+    """Normalize function-call results to the string shape stored in logs.
+
+    Dict/list results are serialized as pretty JSON so the run viewer and
+    tester show the complete, readable payload (str() produced a one-line
+    Python repr that was hard to inspect).
+    """
     if result is None:
         return None
-    return str(result)
+    if isinstance(result, str):
+        return result
+    try:
+        return json.dumps(result, indent=2, default=str)
+    except (TypeError, ValueError):
+        return str(result)
 
 
 def build_function_call_end_event(

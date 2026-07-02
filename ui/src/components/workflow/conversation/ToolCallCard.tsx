@@ -17,6 +17,35 @@ interface ToolCallCardProps {
     reasoningDurationMs?: number;
 }
 
+/** Results arrive as serialized JSON strings; parse when possible so we can
+ * split the tool executor's `request` echo from the response. Older runs
+ * stored Python-repr strings — those fall through and render raw. */
+function parseMaybeJson(value: unknown): unknown {
+    if (typeof value !== "string") return value;
+    try {
+        return JSON.parse(value);
+    } catch {
+        return value;
+    }
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function Section({ label, value }: { label: string; value: unknown }) {
+    return (
+        <div className="space-y-1">
+            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                {label}
+            </p>
+            <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-all rounded-xl bg-background/70 p-3 text-xs leading-5 text-foreground">
+                {formatConversationValue(value)}
+            </pre>
+        </div>
+    );
+}
+
 export function ToolCallCard({
     functionName,
     status,
@@ -28,6 +57,19 @@ export function ToolCallCard({
     const hasArguments = argumentsValue !== undefined;
     const hasResult = resultValue !== undefined;
     const hasDetails = hasArguments || hasResult;
+
+    // Split the executor's request echo out of the result so the card shows
+    // "Request Sent" (method/url/headers/body) and "Response" separately.
+    const parsedResult = parseMaybeJson(resultValue);
+    let requestPart: unknown;
+    let responsePart: unknown = parsedResult;
+    if (isPlainObject(parsedResult) && parsedResult.request !== undefined) {
+        const { request, ...rest } = parsedResult;
+        requestPart = request;
+        responsePart = rest;
+    }
+    const isError =
+        isPlainObject(parsedResult) && parsedResult.status === "error";
 
     return (
         <div className="flex justify-center">
@@ -57,10 +99,16 @@ export function ToolCallCard({
                                         "h-5 px-1.5 text-[10px] uppercase tracking-[0.14em]",
                                         status === "running"
                                             ? "border-amber-400/60 text-amber-700 dark:text-amber-300"
-                                            : "border-emerald-500/30 text-emerald-700 dark:text-emerald-300",
+                                            : isError
+                                                ? "border-red-500/40 text-red-700 dark:text-red-300"
+                                                : "border-emerald-500/30 text-emerald-700 dark:text-emerald-300",
                                     )}
                                 >
-                                    {status === "running" ? "Running" : "Completed"}
+                                    {status === "running"
+                                        ? "Running"
+                                        : isError
+                                            ? "Failed"
+                                            : "Completed"}
                                 </Badge>
                             </div>
                             {hasDetails ? (
@@ -87,24 +135,19 @@ export function ToolCallCard({
                         <CollapsibleContent className="border-t border-amber-500/20 px-3.5 py-3">
                             <div className="space-y-3">
                                 {hasArguments ? (
-                                    <div className="space-y-1">
-                                        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                                            Arguments
-                                        </p>
-                                        <pre className="overflow-x-auto rounded-xl bg-background/70 p-3 text-xs leading-5 text-foreground">
-                                            {formatConversationValue(argumentsValue)}
-                                        </pre>
-                                    </div>
+                                    <Section
+                                        label="Arguments (from the agent)"
+                                        value={parseMaybeJson(argumentsValue)}
+                                    />
+                                ) : null}
+                                {requestPart !== undefined ? (
+                                    <Section label="Request Sent (API)" value={requestPart} />
                                 ) : null}
                                 {hasResult ? (
-                                    <div className="space-y-1">
-                                        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                                            Result
-                                        </p>
-                                        <pre className="overflow-x-auto rounded-xl bg-background/70 p-3 text-xs leading-5 text-foreground">
-                                            {formatConversationValue(resultValue)}
-                                        </pre>
-                                    </div>
+                                    <Section
+                                        label={requestPart !== undefined ? "Response (API)" : "Result"}
+                                        value={responsePart}
+                                    />
                                 ) : null}
                             </div>
                         </CollapsibleContent>

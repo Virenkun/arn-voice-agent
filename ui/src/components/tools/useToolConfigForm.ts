@@ -57,6 +57,7 @@ export function useToolConfigForm() {
     const [parameters, setParameters] = useState<ToolParameter[]>([]);
     const [presetParameters, setPresetParameters] = useState<PresetToolParameter[]>([]);
     const [timeoutMs, setTimeoutMs] = useState(5000);
+    const [requestFormat, setRequestFormat] = useState<'flat' | 'retell'>('flat');
     const [customMessageType, setCustomMessageType] = useState<'text' | 'audio'>('text');
     const [customMessageRecordingId, setCustomMessageRecordingId] = useState("");
 
@@ -142,6 +143,7 @@ export function useToolConfigForm() {
                 setUrl(config.url || "");
                 setCredentialUuid(config.credential_uuid || "");
                 setTimeoutMs(config.timeout_ms || 5000);
+                setRequestFormat(config.request_format === "retell" ? "retell" : "flat");
                 setCustomMessage(config.customMessage || "");
                 setCustomMessageType(config.customMessageType || "text");
                 setCustomMessageRecordingId(config.customMessageRecordingId || "");
@@ -304,6 +306,7 @@ export function useToolConfigForm() {
                         }))
                         : undefined,
                 timeout_ms: timeoutMs,
+                request_format: requestFormat,
                 customMessage: customMessageType === 'text' ? (customMessage || undefined) : undefined,
                 customMessageType,
                 customMessageRecordingId: customMessageType === 'audio' ? (customMessageRecordingId || undefined) : undefined,
@@ -324,6 +327,7 @@ export function useToolConfigForm() {
         parameters, setParameters,
         presetParameters, setPresetParameters,
         timeoutMs, setTimeoutMs,
+        requestFormat, setRequestFormat,
         customMessageType, setCustomMessageType,
         customMessageRecordingId, setCustomMessageRecordingId,
         // end call

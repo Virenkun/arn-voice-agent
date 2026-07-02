@@ -132,6 +132,15 @@ class HttpApiConfig(BaseModel):
         ge=1,
         description="Request timeout in milliseconds.",
     )
+    request_format: Optional[Literal["flat", "retell"]] = Field(
+        default="flat",
+        description=(
+            "Body shape for POST/PUT/PATCH. 'flat' sends the arguments as the "
+            "JSON body. 'retell' wraps them Retell-style as "
+            '{"name": <tool name>, "args": {...}} for dispatcher endpoints '
+            "that route by function name."
+        ),
+    )
     customMessage: Optional[str] = Field(
         default=None, description="Custom message to play after tool execution."
     )

@@ -111,6 +111,8 @@ export function ToolConfigFields({ category, form, recordings }: ToolConfigField
             onPresetParametersChange={form.setPresetParameters}
             timeoutMs={form.timeoutMs}
             onTimeoutMsChange={form.setTimeoutMs}
+            requestFormat={form.requestFormat}
+            onRequestFormatChange={form.setRequestFormat}
             customMessage={form.customMessage}
             onCustomMessageChange={form.setCustomMessage}
             customMessageType={form.customMessageType}

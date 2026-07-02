@@ -2933,6 +2933,12 @@ export type HttpApiConfig = {
      */
     timeout_ms?: number | null;
     /**
+     * Request Format
+     *
+     * Body shape for POST/PUT/PATCH. 'flat' sends the arguments as the JSON body. 'retell' wraps them Retell-style as {"name": <tool name>, "args": {...}} for dispatcher endpoints that route by function name.
+     */
+    request_format?: 'flat' | 'retell' | null;
+    /**
      * Custommessage
      *
      * Custom message to play after tool execution.

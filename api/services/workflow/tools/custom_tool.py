@@ -266,11 +266,17 @@ async def execute_http_tool(
 
     resolved_arguments = {**(arguments or {}), **preset_arguments}
 
-    # Build request: JSON body for POST/PUT/PATCH, query params for GET/DELETE
+    # Build request: JSON body for POST/PUT/PATCH, query params for GET/DELETE.
+    # request_format "retell" wraps the body dispatcher-style as
+    # {"name": <tool name>, "args": {...}} for endpoints (e.g. Retell custom
+    # function servers) that route by function name.
     body = None
     params = None
     if method in ("POST", "PUT", "PATCH"):
-        body = resolved_arguments
+        if config.get("request_format") == "retell":
+            body = {"name": tool.name, "args": resolved_arguments}
+        else:
+            body = resolved_arguments
     elif method in ("GET", "DELETE") and resolved_arguments:
         params = resolved_arguments
 
@@ -282,6 +288,18 @@ async def execute_http_tool(
             f"Resolved preset parameters for '{tool.name}': {list(preset_arguments.keys())}"
         )
     logger.debug(f"Request body: {body}, params: {params}")
+
+    # Echo of the outbound request, included in every result so the run
+    # viewer/tester can show exactly what was sent. Header VALUES are redacted
+    # (credentials); the body is shown in full — it is what the user configures
+    # and needs to debug.
+    request_info: Dict[str, Any] = {"method": method, "url": url}
+    if headers:
+        request_info["headers"] = {k: "<redacted>" for k in headers}
+    if body is not None:
+        request_info["body"] = body
+    if params is not None:
+        request_info["query_params"] = params
 
     try:
         async with httpx.AsyncClient(timeout=timeout_seconds) as client:
@@ -299,11 +317,27 @@ async def execute_http_tool(
             except Exception:
                 response_data = {"raw_response": response.text}
 
+            # Non-2xx must be labeled an error: the LLM only reliably reads the
+            # top-level status, and a 4xx/5xx wrapped as "success" makes it
+            # stall/retry politely instead of recovering.
+            ok = response.is_success
             result = {
-                "status": "success",
+                "status": "success" if ok else "error",
                 "status_code": response.status_code,
+                "request": request_info,
                 "data": response_data,
             }
+            if not ok:
+                result["error"] = (
+                    f"The tool endpoint returned HTTP {response.status_code}. "
+                    "Briefly tell the caller there was a technical problem and "
+                    "continue the conversation without this tool; do not retry "
+                    "more than once."
+                )
+                logger.warning(
+                    f"Custom tool '{tool.name}' returned HTTP {response.status_code}: "
+                    f"{str(response_data)[:300]}"
+                )
 
             logger.debug(
                 f"Custom tool '{tool.name}' completed with status {response.status_code}"
@@ -314,17 +348,20 @@ async def execute_http_tool(
         logger.error(f"Custom tool '{tool.name}' timed out after {timeout_seconds}s")
         return {
             "status": "error",
+            "request": request_info,
             "error": f"Request timed out after {timeout_seconds} seconds",
         }
     except httpx.RequestError as e:
         logger.error(f"Custom tool '{tool.name}' request failed: {e}")
         return {
             "status": "error",
+            "request": request_info,
             "error": f"Request failed: {str(e)}",
         }
     except Exception as e:
         logger.error(f"Custom tool '{tool.name}' execution failed: {e}")
         return {
             "status": "error",
+            "request": request_info,
             "error": f"Tool execution failed: {str(e)}",
         }

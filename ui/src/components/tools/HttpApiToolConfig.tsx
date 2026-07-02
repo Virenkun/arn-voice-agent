@@ -17,6 +17,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -39,6 +40,8 @@ export interface HttpApiToolConfigProps {
     onPresetParametersChange: (parameters: PresetToolParameter[]) => void;
     timeoutMs: number;
     onTimeoutMsChange: (timeout: number) => void;
+    requestFormat: 'flat' | 'retell';
+    onRequestFormatChange: (format: 'flat' | 'retell') => void;
     customMessage: string;
     onCustomMessageChange: (message: string) => void;
     customMessageType: 'text' | 'audio';
@@ -67,6 +70,8 @@ export function HttpApiToolConfig({
     onPresetParametersChange,
     timeoutMs,
     onTimeoutMsChange,
+    requestFormat,
+    onRequestFormatChange,
     customMessage,
     onCustomMessageChange,
     customMessageType,
@@ -146,6 +151,21 @@ export function HttpApiToolConfig({
                                 onChange={onUrlChange}
                                 placeholder="https://api.example.com/appointments"
                                 showValidation
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-between gap-4 rounded-md border p-3">
+                            <div>
+                                <Label>Retell-compatible payload</Label>
+                                <Label className="text-xs text-muted-foreground">
+                                    Wrap the body as {"{"}&quot;name&quot;: &lt;tool name&gt;, &quot;args&quot;: {"{"}...{"}"}{"}"} for dispatcher endpoints that route by function name.
+                                </Label>
+                            </div>
+                            <Switch
+                                checked={requestFormat === 'retell'}
+                                onCheckedChange={(checked) =>
+                                    onRequestFormatChange(checked ? 'retell' : 'flat')
+                                }
                             />
                         </div>
 
