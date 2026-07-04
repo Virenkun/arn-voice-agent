@@ -198,14 +198,23 @@ function NumberWidget({ spec, value, onChange }: WidgetProps) {
 function BooleanWidget({ spec, value, onChange }: WidgetProps) {
     const v = !!value;
     return (
-        <div className="flex items-center space-x-2">
-            <Switch id={`prop-${spec.name}`} checked={v} onCheckedChange={onChange} />
-            <Label htmlFor={`prop-${spec.name}`}>{spec.display_name}</Label>
-            {spec.description && (
-                <Label className="text-xs text-muted-foreground ml-2">
-                    {spec.description}
+        <div className="flex items-start justify-between gap-4 rounded-lg border border-border px-4 py-3">
+            <div className="space-y-0.5">
+                <Label htmlFor={`prop-${spec.name}`} className="text-sm font-medium">
+                    {spec.display_name}
                 </Label>
-            )}
+                {spec.description && (
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                        {spec.description}
+                    </p>
+                )}
+            </div>
+            <Switch
+                id={`prop-${spec.name}`}
+                checked={v}
+                onCheckedChange={onChange}
+                className="mt-0.5 shrink-0"
+            />
         </div>
     );
 }

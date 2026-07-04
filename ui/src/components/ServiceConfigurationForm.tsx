@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { getDefaultConfigurationsApiV1UserConfigurationsDefaultsGet } from '@/client/sdk.gen';
+import { InlineBanner } from "@/components/InlineBanner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -536,7 +537,7 @@ export function ServiceConfigurationForm({
 
         return (
             <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
                     <div className="space-y-2">
                         <Label>Provider</Label>
                         <Select
@@ -557,14 +558,14 @@ export function ServiceConfigurationForm({
                             </SelectContent>
                         </Select>
                         {(providerSchema?.description || providerSchema?.provider_docs_url) && (
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-[13px] leading-snug text-muted-foreground">
                                 {providerSchema?.description}{" "}
                                 {providerSchema?.provider_docs_url && (
                                     <a
                                         href={providerSchema.provider_docs_url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-0.5 underline"
+                                        className="inline-flex items-center gap-1 underline underline-offset-4 decoration-muted-foreground/40 transition-colors duration-150 hover:text-foreground hover:decoration-foreground"
                                     >
                                         Learn more <ExternalLink className="h-3 w-3" />
                                     </a>
@@ -582,7 +583,7 @@ export function ServiceConfigurationForm({
                 </div>
 
                 {currentProvider && providerSchema && configFields.length > 1 && (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
                         {configFields.slice(1).map((field) => {
                             const fieldSchema = providerSchema.properties[field];
                             const actualFieldSchema = fieldSchema?.$ref && providerSchema.$defs
@@ -590,7 +591,7 @@ export function ServiceConfigurationForm({
                                 : fieldSchema;
                             const fullWidth = actualFieldSchema?.multiline;
                             return (
-                                <div key={field} className={`space-y-2 ${fullWidth ? "col-span-2" : ""}`}>
+                                <div key={field} className={`space-y-2 ${fullWidth ? "sm:col-span-2" : ""}`}>
                                     <Label className="capitalize">{field.replace(/_/g, ' ')}</Label>
                                     {renderField(service, field, providerSchema)}
                                 </div>
@@ -600,7 +601,7 @@ export function ServiceConfigurationForm({
                 )}
 
                 {currentProvider && providerSchema && providerSchema.properties.api_key && (
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                         <Label>{mode === 'override' ? 'API Key (leave empty to use global)' : 'API Key(s)'}</Label>
                         {renderFieldDescription("api_key", providerSchema)}
                         {apiKeys[service].map((key, index) => (
@@ -620,7 +621,7 @@ export function ServiceConfigurationForm({
                                         type="button"
                                         variant="ghost"
                                         size="icon"
-                                        className="shrink-0"
+                                        className="shrink-0 text-muted-foreground transition-colors duration-150 hover:bg-destructive/10 hover:text-destructive"
                                         onClick={() => {
                                             setApiKeys(prev => ({
                                                 ...prev,
@@ -636,8 +637,9 @@ export function ServiceConfigurationForm({
                         {mode !== 'override' && (
                             <Button
                                 type="button"
-                                variant="outline"
+                                variant="ghost"
                                 size="sm"
+                                className="h-8 px-2 text-[13px] text-muted-foreground transition-colors duration-150 hover:text-foreground"
                                 onClick={() => {
                                     setApiKeys(prev => ({
                                         ...prev,
@@ -645,7 +647,7 @@ export function ServiceConfigurationForm({
                                     }));
                                 }}
                             >
-                                <Plus className="h-4 w-4 mr-1" /> Add API Key
+                                <Plus className="mr-1 h-3.5 w-3.5" /> Add API Key
                             </Button>
                         )}
                     </div>
@@ -662,14 +664,14 @@ export function ServiceConfigurationForm({
             : schema;
         if (!actualSchema?.description && !actualSchema?.docs_url) return null;
         return (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[13px] leading-snug text-muted-foreground">
                 {actualSchema?.description}{" "}
                 {actualSchema?.docs_url && (
                     <a
                         href={actualSchema.docs_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-0.5 underline"
+                        className="inline-flex items-center gap-1 underline underline-offset-4 decoration-muted-foreground/40 transition-colors duration-150 hover:text-foreground hover:decoration-foreground"
                     >
                         Supported languages <ExternalLink className="h-3 w-3" />
                     </a>
@@ -728,7 +730,7 @@ export function ServiceConfigurationForm({
                                 setValue(fieldKey, e.target.value, { shouldDirty: true });
                             }}
                         />
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center gap-2 pt-0.5">
                             <Checkbox
                                 id={`custom-input-${fieldKey}`}
                                 checked={true}
@@ -739,7 +741,7 @@ export function ServiceConfigurationForm({
                                     }
                                 }}
                             />
-                            <Label htmlFor={`custom-input-${fieldKey}`} className="text-sm font-normal cursor-pointer">
+                            <Label htmlFor={`custom-input-${fieldKey}`} className="text-xs font-normal text-muted-foreground cursor-pointer transition-colors duration-150 hover:text-foreground">
                                 Enter Custom Value
                             </Label>
                         </div>
@@ -767,7 +769,7 @@ export function ServiceConfigurationForm({
                             ))}
                         </SelectContent>
                     </Select>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center gap-2 pt-0.5">
                         <Checkbox
                             id={`custom-input-${fieldKey}-dropdown`}
                             checked={false}
@@ -775,7 +777,7 @@ export function ServiceConfigurationForm({
                                 setIsCustomInput(prev => ({ ...prev, [fieldKey]: checked as boolean }));
                             }}
                         />
-                        <Label htmlFor={`custom-input-${fieldKey}-dropdown`} className="text-sm font-normal cursor-pointer">
+                        <Label htmlFor={`custom-input-${fieldKey}-dropdown`} className="text-xs font-normal text-muted-foreground cursor-pointer transition-colors duration-150 hover:text-foreground">
                             Enter Custom Value
                         </Label>
                     </div>
@@ -853,19 +855,20 @@ export function ServiceConfigurationForm({
         const globalProviderSchema = globalProvider ? schemas?.[service]?.[globalProvider] : undefined;
 
         return (
-            <div className="flex items-center justify-between p-3 border rounded-md bg-muted/20 mb-4">
-                <div className="space-y-0.5">
+            <div className="mb-5 flex items-center justify-between gap-6 rounded-lg border border-border/60 px-4 py-3.5 transition-colors duration-150 hover:border-border">
+                <div className="space-y-1">
                     <Label htmlFor={`override-${service}`} className="text-sm cursor-pointer font-medium">
                         Override {label}
                     </Label>
                     {!isEnabled && (
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-[13px] leading-snug text-muted-foreground">
                             Using global: {getGlobalSummary(globalVal, globalProviderSchema)}
                         </p>
                     )}
                 </div>
                 <Switch
                     id={`override-${service}`}
+                    className="shrink-0"
                     checked={isEnabled}
                     onCheckedChange={(checked) => handleOverrideToggle(service, checked)}
                 />
@@ -887,29 +890,30 @@ export function ServiceConfigurationForm({
         <form onSubmit={handleSubmit(onSubmit)}>
             {/* Realtime toggle — hidden when the parent locks the mode (v2 tabs) */}
             {forceRealtime === undefined && (
-                <div className="flex items-center justify-between mb-4 p-4 border rounded-lg">
-                    <div>
+                <div className="mb-6 flex items-center justify-between gap-6 rounded-lg border border-border/60 px-4 py-3.5 transition-colors duration-150 hover:border-border">
+                    <div className="space-y-1">
                         <Label htmlFor="realtime-toggle" className="text-sm font-medium">
                             Realtime Mode
                         </Label>
-                        <p className="text-xs text-muted-foreground mt-0.5">
+                        <p className="text-[13px] leading-snug text-muted-foreground">
                             Uses a single speech-to-speech model (no separate STT/TTS). An LLM is still required for variable extraction and QA.
                         </p>
                     </div>
                     <Switch
                         id="realtime-toggle"
+                        className="shrink-0"
                         checked={isRealtime}
                         onCheckedChange={setIsRealtime}
                     />
                 </div>
             )}
 
-            <Card>
-                <CardContent className="pt-6">
+            <Card className="shadow-none dark:shadow-none">
+                <CardContent className="p-5 pt-6 sm:p-6">
                     <Tabs key={defaultTab} defaultValue={defaultTab} className="w-full">
-                        <TabsList className="grid w-full mb-6" style={{ gridTemplateColumns: `repeat(${visibleTabs.length}, 1fr)` }}>
+                        <TabsList className="mb-6 w-fit max-w-full">
                             {visibleTabs.map(({ key, label }) => (
-                                <TabsTrigger key={key} value={key}>
+                                <TabsTrigger key={key} value={key} className="px-4">
                                     {label}
                                 </TabsTrigger>
                             ))}
@@ -925,11 +929,13 @@ export function ServiceConfigurationForm({
                 </CardContent>
             </Card>
 
-            {apiError && <p className="text-red-500 mt-4">{apiError}</p>}
+            {apiError && <InlineBanner variant="error" className="mt-6">{apiError}</InlineBanner>}
 
-            <Button type="submit" className="w-full mt-6" disabled={isSaving}>
-                {isSaving ? "Saving..." : (submitLabel || "Save Configuration")}
-            </Button>
+            <div className="mt-8 flex justify-end">
+                <Button type="submit" className="w-full sm:w-auto sm:min-w-40" disabled={isSaving}>
+                    {isSaving ? "Saving..." : (submitLabel || "Save Configuration")}
+                </Button>
+            </div>
         </form>
     );
 }

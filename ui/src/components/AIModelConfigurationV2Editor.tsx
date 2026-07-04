@@ -4,6 +4,7 @@ import { KeyRound, Save } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { OrganizationAiModelConfigurationV2 } from "@/client/types.gen";
+import { InlineBanner } from "@/components/InlineBanner";
 import {
     type ProviderSchema,
     type ServiceConfigurationDefaults,
@@ -366,20 +367,16 @@ export function AIModelConfigurationV2Editor({
 
     return (
         <div className="space-y-6">
-            {error && (
-                <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                    {error}
-                </div>
-            )}
+            {error && <InlineBanner variant="error">{error}</InlineBanner>}
 
             <Tabs value={mode} onValueChange={(value) => setMode(value as ModelMode)} className="space-y-6">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="realtime">Speech to Speech</TabsTrigger>
-                    <TabsTrigger value="byok">BYOK</TabsTrigger>
+                <TabsList className="w-fit">
+                    <TabsTrigger value="realtime" className="px-5">Speech to Speech</TabsTrigger>
+                    <TabsTrigger value="byok" className="px-5">BYOK</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="realtime" className="mt-0">
-                    <p className="mb-4 text-sm text-muted-foreground">
+                    <p className="mb-5 max-w-prose text-[13px] leading-relaxed text-muted-foreground">
                         A single speech-to-speech model handles the conversation in realtime (no separate transcriber or voice). An LLM is still required for variable extraction and QA.
                     </p>
                     <ServiceConfigurationForm
@@ -396,9 +393,9 @@ export function AIModelConfigurationV2Editor({
                 {/* Managed "Dograh" provider is disabled in this self-hosted build
                     (BYOK only). Kept inert below — no trigger selects this tab. */}
                 <TabsContent value="dograh" className="mt-0">
-                    <Card>
-                        <CardContent className="pt-6">
-                            <div className="grid gap-4 sm:grid-cols-2">
+                    <Card className="shadow-none dark:shadow-none">
+                        <CardContent className="p-6">
+                            <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
                                 <div className="space-y-2 sm:col-span-2">
                                     <Label>Voice</Label>
                                     <VoiceSelectorModal
@@ -424,7 +421,7 @@ export function AIModelConfigurationV2Editor({
                                         </SelectContent>
                                     </Select>
                                     {dograh.language === MULTILINGUAL_LANGUAGE_CODE && multilingualLanguageNames && (
-                                        <p className="text-xs text-muted-foreground">
+                                        <p className="text-[13px] leading-snug text-muted-foreground">
                                             Auto-detects {multilingualLanguageNames}.
                                         </p>
                                     )}
@@ -464,10 +461,12 @@ export function AIModelConfigurationV2Editor({
                                 </div>
                             </div>
 
-                            <Button type="button" className="mt-6 w-full" onClick={saveDograhConfiguration} disabled={isSavingDograh}>
-                                <Save className="mr-2 h-4 w-4" />
-                                {isSavingDograh ? "Saving..." : submitLabel}
-                            </Button>
+                            <div className="mt-8 flex justify-end">
+                                <Button type="button" className="w-full sm:w-auto sm:min-w-40" onClick={saveDograhConfiguration} disabled={isSavingDograh}>
+                                    <Save className="mr-2 h-4 w-4" />
+                                    {isSavingDograh ? "Saving..." : submitLabel}
+                                </Button>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>

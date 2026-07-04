@@ -14,13 +14,11 @@ export default async function ServiceConfigurationPage({ searchParams }: Service
 
     return (
         <div className="min-h-screen">
-            <div className="container mx-auto px-4 py-8">
-                <div className="max-w-4xl mx-auto">
-                    <ModelConfigurationV2
-                        docsUrl={SETTINGS_DOCUMENTATION_URLS.modelOverrides}
-                        initialAction={action}
-                    />
-                </div>
+            <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:py-12">
+                <ModelConfigurationV2
+                    docsUrl={SETTINGS_DOCUMENTATION_URLS.modelOverrides}
+                    initialAction={action}
+                />
             </div>
         </div>
     );

@@ -144,10 +144,6 @@
   /* App accent — follows the violet primary (CTAs, focus underlines, waveform). */
   --cta: oklch(0.5393 0.2713 286.7462);
   --cta-foreground: oklch(1 0 0);
-  /* Giant faded brand wordmark (placeholder: a <text> "arnsoft" SVG in /public
-     with low fill-opacity baked in — swap for traced letterform artwork later).
-     Theme-switched here; consumed by .app-surface and .auth-imprint. */
-  --brand-imprint: url("/brand-imprint-arnsoft-light.svg");
 }
 
 /* "Violet Bloom" theme (dark) */
@@ -188,7 +184,6 @@
   /* Accent follows the violet primary, brighter against dark surfaces. */
   --cta: oklch(0.6132 0.2294 291.7437);
   --cta-foreground: oklch(1 0 0);
-  --brand-imprint: url("/brand-imprint-arnsoft-dark.svg");
 }
 
 @layer base {
@@ -200,6 +195,41 @@
     @apply bg-background text-foreground;
     letter-spacing: var(--tracking-normal);
   }
+}
+
+/* Thin, light scrollbars app-wide. WebKit (Chrome/Safari/Edge) uses the
+   ::-webkit-scrollbar pseudo-elements below for a true 5px bar. Firefox has no
+   such pseudo-elements, so it gets scrollbar-width/color — gated behind a
+   Firefox-only @supports because in Chrome 121+ setting `scrollbar-width`
+   DISABLES the ::-webkit-scrollbar sizing (they conflict), leaving a fatter
+   native "thin" bar. Thumb is a low-opacity neutral, quiet on light or dark. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--foreground) 18%, transparent) transparent;
+  }
+}
+
+*::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: color-mix(in oklab, var(--foreground) 18%, transparent);
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in oklab, var(--foreground) 32%, transparent);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 @keyframes spin-slow {
@@ -257,39 +287,12 @@
   }
 
   /* Matte app background — flat charcoal (dark) / soft paper (light), NO
-     gradients, with one subtle graphic in BOTH themes: the giant faded
-     "dograh" wordmark (--brand-imprint, defined in :root/.dark) pinned to
-     the bottom of the viewport, echoing the dograh.com footer. */
-  /* NOTE: background-attachment: fixed positions in VIEWPORT space but only
-     paints inside .app-surface, which starts right of the ~270px sidebar —
-     the +135px x-shift recentres the wordmark on the VISIBLE canvas. */
+     gradients. */
   .app-surface {
     background-color: oklch(0.985 0.003 271);
-    background-image: var(--brand-imprint);
-    background-size: min(68vw, 980px) auto;
-    background-position: calc(50% + 135px) calc(100% - 24px);
-    background-repeat: no-repeat;
-    background-attachment: fixed;
-  }
-  /* Sidebar is offcanvas on small screens — true centre there. */
-  @media (max-width: 767px) {
-    .app-surface {
-      background-position: center calc(100% - 24px);
-    }
   }
   .dark .app-surface {
     background-color: oklch(0.235 0.007 272);
-  }
-
-  /* Giant faded "dograh" imprint for the auth pages (applied to the AuthShell
-     form column, shared by Stack + OSS login/signup). Same --brand-imprint as
-     .app-surface; element-relative here (no fixed attachment), so it centers
-     and scales to whatever element carries the class. */
-  .auth-imprint {
-    background-image: var(--brand-imprint);
-    background-size: min(86%, 920px) auto;
-    background-position: center calc(100% - 32px);
-    background-repeat: no-repeat;
   }
 
 }

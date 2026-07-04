@@ -255,7 +255,7 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
                     value={manualVoiceId}
                     onChange={(e) => handleManualVoiceIdChange(e.target.value)}
                 />
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-2 pt-0.5">
                     <Checkbox
                         id="manual-voice-input"
                         checked={isManualInput}
@@ -263,7 +263,7 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
                     />
                     <Label
                         htmlFor="manual-voice-input"
-                        className="text-sm font-normal cursor-pointer"
+                        className="text-xs font-normal text-muted-foreground cursor-pointer transition-colors duration-150 hover:text-foreground"
                     >
                         Add Voice ID Manually
                     </Label>
@@ -281,7 +281,7 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
                         role="combobox"
                         aria-expanded={isOpen}
                         className={cn(
-                            "w-full justify-between",
+                            "w-full justify-between font-normal",
                             !value && "text-muted-foreground"
                         )}
                         disabled={isLoading}
@@ -296,20 +296,20 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
                         )}
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0" align="start">
-                    <div className="p-2 space-y-2">
+                <PopoverContent className="w-[400px] max-w-[calc(100vw-2rem)] overflow-hidden p-0" align="start">
+                    <div className="border-b border-border/50 p-2">
                         <div className="relative">
-                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 placeholder="Search voices..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-8"
+                                className="h-9 border-0 bg-transparent pl-8 shadow-none focus-visible:ring-0 dark:bg-transparent"
                             />
                         </div>
 
                         {showFilters && (
-                            <div className="grid gap-2 sm:grid-cols-3">
+                            <div className="mt-2 grid gap-2 sm:grid-cols-3">
                                 <Select value={genderFilter} onValueChange={setGenderFilter}>
                                     <SelectTrigger className="h-8">
                                         <SelectValue placeholder="Gender" />
@@ -353,18 +353,20 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
                                 </Select>
                             </div>
                         )}
+                    </div>
 
-                        <div className="max-h-[300px] overflow-auto space-y-1">
+                    <div className="max-h-[300px] overflow-y-auto p-1.5">
+                        <div className="space-y-0.5">
                             {error ? (
-                                <p className="text-sm text-red-500 text-center py-4">
+                                <p className="py-6 text-center text-sm text-destructive">
                                     {error}
                                 </p>
                             ) : isLoading ? (
-                                <div className="flex items-center justify-center py-4">
+                                <div className="flex items-center justify-center py-6">
                                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                                 </div>
                             ) : filteredVoices.length === 0 ? (
-                                <p className="text-sm text-muted-foreground text-center py-4">
+                                <p className="py-6 text-center text-sm text-muted-foreground">
                                     No voices found
                                 </p>
                             ) : (
@@ -372,7 +374,7 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
                                     <div
                                         key={voice.voice_id}
                                         className={cn(
-                                            "flex items-start space-x-3 p-2 hover:bg-accent rounded-sm cursor-pointer",
+                                            "flex items-start gap-3 rounded-md px-2.5 py-2 cursor-pointer transition-colors duration-150 hover:bg-accent/60",
                                             value === voice.voice_id && "bg-accent"
                                         )}
                                         onClick={() => handleSelectVoice(voice.voice_id)}
@@ -389,28 +391,30 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
                                                 )}
                                             </div>
                                             {voice.description && (
-                                                <p className="text-xs text-muted-foreground line-clamp-2">
+                                                <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
                                                     {voice.description}
                                                 </p>
                                             )}
-                                            <div className="flex items-center gap-2 mt-1">
-                                                {voice.accent && (
-                                                    <span className="text-xs bg-secondary px-1.5 py-0.5 rounded capitalize">
-                                                        {voice.accent}
-                                                    </span>
-                                                )}
-                                                {voice.language && (
-                                                    <span className="text-xs bg-secondary px-1.5 py-0.5 rounded uppercase">
-                                                        {voice.language}
-                                                    </span>
-                                                )}
-                                            </div>
+                                            {(voice.accent || voice.language) && (
+                                                <div className="flex items-center gap-1.5 mt-1.5">
+                                                    {voice.accent && (
+                                                        <span className="rounded-full bg-secondary/70 px-2 py-0.5 text-[11px] leading-4 text-secondary-foreground capitalize">
+                                                            {voice.accent}
+                                                        </span>
+                                                    )}
+                                                    {voice.language && (
+                                                        <span className="rounded-full bg-secondary/70 px-2 py-0.5 text-[11px] leading-4 text-secondary-foreground uppercase">
+                                                            {voice.language}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                         {voice.preview_url && (
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className="h-8 w-8 p-0 shrink-0"
+                                                className="h-8 w-8 p-0 shrink-0 text-muted-foreground transition-colors duration-150 hover:text-foreground"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     playPreview(voice.preview_url!, voice.voice_id);
@@ -429,34 +433,34 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
                                 ))
                             )}
                         </div>
+                    </div>
 
-                        <div className="pt-2 border-t flex items-center justify-between">
-                            {allowManualInput ? (
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox
-                                        id="manual-voice-input-popup"
-                                        checked={isManualInput}
-                                        onCheckedChange={(checked) => {
-                                            handleManualInputToggle(checked as boolean);
-                                            if (checked) {
-                                                setIsOpen(false);
-                                            }
-                                        }}
-                                    />
-                                    <Label
-                                        htmlFor="manual-voice-input-popup"
-                                        className="text-sm font-normal cursor-pointer"
-                                    >
-                                        Add Voice ID Manually
-                                    </Label>
-                                </div>
-                            ) : (
-                                <span />
-                            )}
-                            <p className="text-xs text-muted-foreground">
-                                {filteredVoices.length} of {voices.length} voices
-                            </p>
-                        </div>
+                    <div className="flex items-center justify-between border-t border-border/50 px-3 py-2">
+                        {allowManualInput ? (
+                            <div className="flex items-center gap-2">
+                                <Checkbox
+                                    id="manual-voice-input-popup"
+                                    checked={isManualInput}
+                                    onCheckedChange={(checked) => {
+                                        handleManualInputToggle(checked as boolean);
+                                        if (checked) {
+                                            setIsOpen(false);
+                                        }
+                                    }}
+                                />
+                                <Label
+                                    htmlFor="manual-voice-input-popup"
+                                    className="text-xs font-normal text-muted-foreground cursor-pointer transition-colors duration-150 hover:text-foreground"
+                                >
+                                    Add Voice ID Manually
+                                </Label>
+                            </div>
+                        ) : (
+                            <span />
+                        )}
+                        <p className="text-xs tabular-nums text-muted-foreground">
+                            {filteredVoices.length} of {voices.length} voices
+                        </p>
                     </div>
                 </PopoverContent>
             </Popover>

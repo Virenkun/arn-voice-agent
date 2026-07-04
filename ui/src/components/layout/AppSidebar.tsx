@@ -1,28 +1,20 @@
 "use client";
 
-import type { Team } from "@stackframe/stack";
 import {
   AlertTriangle,
   ArrowUpCircle,
-  AudioLines,
-  Brain,
   ChevronLeft,
   ChevronRight,
-  Database,
   FileText,
-  Key,
   LogOut,
-  type LucideIcon,
-  Megaphone,
+  MoreVertical,
   Phone,
   Settings,
   TrendingUp,
-  Workflow,
-  Wrench,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import React, { useRef } from "react";
+import React from "react";
 
 import { BrandLogo } from "@/components/BrandLogo";
 import ThemeToggle from "@/components/ThemeSwitcher";
@@ -61,10 +53,30 @@ import type { LocalUser } from "@/lib/auth";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
+import { AiIcon } from "../icons/AiIcon";
+import { AiIconOutline } from "../icons/AiIconOutline";
+import { Audio } from "../icons/Audio";
+import { AudioOutline } from "../icons/AudioOutline";
+import { File } from "../icons/File";
+import { FileOutline } from "../icons/FileOutline";
+import { Key } from "../icons/Key";
+import { KeyOutline } from "../icons/KeyOutline";
+import { Model } from "../icons/Model";
+import { ModelOutline } from "../icons/ModelOutline";
+import { Tool } from "../icons/Tool";
+import { ToolOutline } from "../icons/ToolOutline";
+import { Trade } from "../icons/Trade";
+import { TradeOutline } from "../icons/TradeOutline";
+
+type IconComponent = React.ComponentType<{ className?: string }>;
+
 type SidebarNavItem = {
   title: string;
   url: string;
-  icon: LucideIcon;
+  /** Icon shown when the item is inactive (outline variant). */
+  icon: IconComponent;
+  /** Icon shown when the item is active (filled variant). Falls back to `icon`. */
+  activeIcon?: IconComponent;
   showsTelephonyWarning?: boolean;
 };
 
@@ -80,19 +92,22 @@ const NAV_SECTIONS: SidebarNavSection[] = [
     label: "BUILD",
     items: [
       {
-        title: "Voice Agents",
+        title: "Agents",
         url: "/workflow",
-        icon: Workflow,
+        icon: AiIconOutline,
+        activeIcon: AiIcon,
       },
       {
         title: "Campaigns",
         url: "/campaigns",
-        icon: Megaphone,
+        icon: TradeOutline,
+        activeIcon: Trade,
       },
       {
         title: "Models",
         url: "/model-configurations",
-        icon: Brain,
+        icon: ModelOutline,
+        activeIcon: Model,
       },
       {
         title: "Telephony",
@@ -103,22 +118,26 @@ const NAV_SECTIONS: SidebarNavSection[] = [
       {
         title: "Tools",
         url: "/tools",
-        icon: Wrench,
+        icon: ToolOutline,
+        activeIcon: Tool,
       },
       {
         title: "Files",
         url: "/files",
-        icon: Database,
+        icon: FileOutline,
+        activeIcon: File,
       },
       {
         title: "Recordings",
         url: "/recordings",
-        icon: AudioLines,
+        icon: AudioOutline,
+        activeIcon: Audio,
       },
       {
         title: "Developers",
         url: "/api-keys",
-        icon: Key,
+        icon: KeyOutline,
+        activeIcon: Key,
       },
     ],
   },
@@ -139,18 +158,11 @@ const NAV_SECTIONS: SidebarNavSection[] = [
   },
 ];
 
-// Lazy load SelectedTeamSwitcher - we'll pass selectedTeam from our context
-const StackTeamSwitcher = React.lazy(() =>
-  import("@stackframe/stack").then((mod) => ({
-    default: mod.SelectedTeamSwitcher,
-  })),
-);
-
 export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { state, isMobile, setOpenMobile } = useSidebar();
-  const { provider, getSelectedTeam, logout, user } = useAuth();
+  const { provider, logout, user } = useAuth();
   const { config } = useAppConfig();
   const {
     telnyxMissingWebhookPublicKeyCount,
@@ -160,19 +172,6 @@ export function AppSidebar() {
     telnyxMissingWebhookPublicKeyCount > 0 ||
     vonageMissingSignatureSecretCount > 0;
   const isCollapsed = !isMobile && state === "collapsed";
-
-  // Get selected team for Stack auth (cast to Team type from Stack)
-  // Stabilize the reference so SelectedTeamSwitcher only sees a change when the team ID changes,
-  // preventing unnecessary PATCH calls to Stack Auth on every route navigation.
-  const selectedTeamRef = useRef<Team | null>(null);
-  const rawSelectedTeam =
-    provider === "stack" && getSelectedTeam
-      ? (getSelectedTeam() as Team | null)
-      : null;
-  if (rawSelectedTeam?.id !== selectedTeamRef.current?.id) {
-    selectedTeamRef.current = rawSelectedTeam;
-  }
-  const selectedTeam = selectedTeamRef.current;
 
   // Version info from app config context
   const versionInfo = config
@@ -198,7 +197,8 @@ export function AppSidebar() {
 
   const SidebarLink = ({ item }: { item: SidebarNavItem }) => {
     const isItemActive = isActive(item.url);
-    const Icon = item.icon;
+    // Show the filled variant when active, the outline variant otherwise.
+    const Icon = isItemActive ? (item.activeIcon ?? item.icon) : item.icon;
     const showWarningDot = item.showsTelephonyWarning && hasTelephonyWarning;
     const tooltip = {
       children: (
@@ -229,7 +229,7 @@ export function AppSidebar() {
         asChild
         tooltip={tooltip}
         className={cn(
-          "rounded-xl transition-colors hover:bg-accent hover:text-accent-foreground",
+          "rounded-xl transition-colors hover:bg-accent hover:text-foreground",
           isItemActive &&
             "bg-cta/15 font-semibold text-foreground hover:bg-cta/20 hover:text-foreground",
         )}
@@ -266,13 +266,15 @@ export function AppSidebar() {
     );
   };
 
-  // Footer identity trigger: avatar initials only (no name), in a subtle
-  // bordered circle. Same treatment expanded and collapsed.
-  const displayIdentity =
-    user?.displayName ||
+  // Footer identity: avatar + name/email + a "more" menu. Expanded shows the
+  // full identity card; collapsed shows the avatar alone as the menu trigger.
+  const userEmail =
     (user as { primaryEmail?: string } | undefined)?.primaryEmail ||
     (user as LocalUser | undefined)?.email ||
     "";
+  const userName =
+    user?.displayName || (userEmail ? userEmail.split("@")[0] : "") || "User";
+  const displayIdentity = user?.displayName || userEmail || "";
   const userInitials =
     displayIdentity
       .split(/[\s@]/)
@@ -281,24 +283,57 @@ export function AppSidebar() {
       .map((s: string) => s[0]?.toUpperCase())
       .join("") || "U";
 
-  const userChipTrigger = (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="h-7 w-7 shrink-0 cursor-pointer rounded-full border border-border/80 bg-muted/40 hover:bg-muted/60"
-    >
+  const avatar = (
+    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border/80 bg-muted/40">
       <span className="text-xs font-medium">{userInitials}</span>
-    </Button>
+    </div>
   );
 
-  // "Hire an Expert" CTA, rendered INSIDE the shared footer pill next to the
-  // profile icon. Expanded: label pill filling the row. Collapsed: icon-only.
+  // Shared dropdown contents for the footer identity menu. The three-dot
+  // trigger (expanded) and the avatar trigger (collapsed) both open this.
+  const userMenuContent = (
+    <DropdownMenuContent
+      side="top"
+      align={isCollapsed ? "start" : "end"}
+      className="w-56"
+    >
+      <DropdownMenuLabel className="font-normal">
+        <div className="flex flex-col space-y-1">
+          <p className="truncate text-sm font-medium">{userName}</p>
+          {userEmail && (
+            <p className="truncate text-xs text-muted-foreground">{userEmail}</p>
+          )}
+        </div>
+      </DropdownMenuLabel>
+      <DropdownMenuSeparator />
+      {provider === "stack" && (
+        <DropdownMenuItem
+          onClick={() => router.push("/handler/account-settings")}
+          className="cursor-pointer"
+        >
+          <Settings className="mr-2 h-4 w-4" />
+          Account settings
+        </DropdownMenuItem>
+      )}
+      <DropdownMenuItem
+        onClick={() => router.push("/settings")}
+        className="cursor-pointer"
+      >
+        <Settings className="mr-2 h-4 w-4" />
+        Platform Settings
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => logout()} className="cursor-pointer">
+        <LogOut className="mr-2 h-4 w-4" />
+        Sign out
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  );
 
   return (
     <Sidebar
       collapsible="icon"
       variant="sidebar"
-      className="app-sidebar-dock py-4"
+      className="app-sidebar-dock py-4 bg-transparent"
     >
       <SidebarHeader className="px-2 py-3 notranslate" translate="no">
         <div className="flex items-center justify-between">
@@ -352,36 +387,34 @@ export function AppSidebar() {
             )}
           </div>
 
-          <SidebarTrigger
-            className={cn("hover:bg-accent", isCollapsed && "mx-auto")}
-          >
-            {isCollapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
-          </SidebarTrigger>
-        </div>
-
-        {provider === "stack" && (
           <div
-            className={cn("mt-3 notranslate", isCollapsed && "hidden")}
-            translate="no"
+            className={cn(
+              "flex items-center gap-0.5",
+              isCollapsed && "mx-auto flex-col",
+            )}
           >
-            <React.Suspense
-              fallback={
-                <div className="h-9 w-full animate-pulse rounded bg-muted" />
-              }
-            >
-              <StackTeamSwitcher
-                selectedTeam={selectedTeam || undefined}
-                onChange={() => {
-                  router.refresh();
-                }}
-              />
-            </React.Suspense>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="notranslate" translate="no">
+                  <ThemeToggle
+                    showLabel={false}
+                    className="rounded-full hover:bg-accent hover:text-foreground"
+                  />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side={isCollapsed ? "right" : "bottom"}>
+                <p>Toggle theme</p>
+              </TooltipContent>
+            </Tooltip>
+            <SidebarTrigger className="hover:bg-accent">
+              {isCollapsed ? (
+                <ChevronRight className="h-4 w-4" />
+              ) : (
+                <ChevronLeft className="h-4 w-4" />
+              )}
+            </SidebarTrigger>
           </div>
-        )}
+        </div>
       </SidebarHeader>
 
       <SidebarContent
@@ -420,115 +453,43 @@ export function AppSidebar() {
         translate="no"
       >
         <div className="space-y-2">
-          {provider !== "stack" && (
-            <div
-              className={cn(
-                "flex items-center justify-between gap-1 rounded-full border border-border/60 bg-muted/30 p-1",
-                isCollapsed && "flex-col",
-              )}
-            >
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  {userChipTrigger}
-                </DropdownMenuTrigger>
-                <DropdownMenuContent side="top" align="start" className="w-56">
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      {(user as LocalUser | undefined)?.email && (
-                        <p className="text-xs text-muted-foreground">
-                          {(user as LocalUser).email}
-                        </p>
-                      )}
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => router.push("/settings")}
-                    className="cursor-pointer"
-                  >
-                    <Settings className="mr-2 h-4 w-4" />
-                    Platform Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => logout()}
-                    className="cursor-pointer"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sign out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
-
-          {provider === "stack" && (
-            <div
-              className={cn(
-                "flex items-center justify-between gap-1 rounded-full border border-border/60 bg-muted/30 p-1",
-                isCollapsed && "flex-col",
-              )}
-            >
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  {userChipTrigger}
-                </DropdownMenuTrigger>
-                <DropdownMenuContent side="top" align="start" className="w-56">
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      {user?.displayName && (
-                        <p className="text-sm font-medium">
-                          {user.displayName}
-                        </p>
-                      )}
-                      {(user as { primaryEmail?: string })?.primaryEmail && (
-                        <p className="text-xs text-muted-foreground">
-                          {(user as { primaryEmail?: string }).primaryEmail}
-                        </p>
-                      )}
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => router.push("/handler/account-settings")}
-                    className="cursor-pointer"
-                  >
-                    <Settings className="mr-2 h-4 w-4" />
-                    Account settings
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => router.push("/settings")}
-                    className="cursor-pointer"
-                  >
-                    <Settings className="mr-2 h-4 w-4" />
-                    Platform Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => logout()}
-                    className="cursor-pointer"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sign out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
-
-          <div className="mt-1 flex justify-center">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="notranslate" translate="no">
-                  <ThemeToggle
-                    showLabel={false}
-                    className="rounded-full hover:bg-accent hover:text-accent-foreground"
-                  />
+          <DropdownMenu>
+            {isCollapsed ? (
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Account menu"
+                  className="mx-auto h-9 w-9 shrink-0 cursor-pointer rounded-full border border-border/80 bg-muted/40 hover:bg-muted/60"
+                >
+                  <span className="text-xs font-medium">{userInitials}</span>
+                </Button>
+              </DropdownMenuTrigger>
+            ) : (
+              <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/30 p-1.5">
+                {avatar}
+                <div className="min-w-0 flex-1 leading-tight">
+                  <p className="truncate text-sm font-medium">{userName}</p>
+                  {userEmail && (
+                    <p className="truncate text-xs text-muted-foreground">
+                      {userEmail}
+                    </p>
+                  )}
                 </div>
-              </TooltipTrigger>
-              <TooltipContent side={isCollapsed ? "right" : "top"}>
-                <p>Toggle theme</p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Account menu"
+                    className="h-7 w-7 shrink-0 cursor-pointer rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </div>
+            )}
+            {userMenuContent}
+          </DropdownMenu>
         </div>
       </SidebarFooter>
       <SidebarRail />

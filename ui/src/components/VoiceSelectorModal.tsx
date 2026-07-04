@@ -252,11 +252,11 @@ export const VoiceSelectorModal: React.FC<VoiceSelectorModalProps> = ({
             <Button
                 type="button"
                 variant="outline"
-                className={cn("w-full justify-between", !value && "text-muted-foreground")}
+                className={cn("w-full justify-between font-normal", !value && "text-muted-foreground")}
                 onClick={openModal}
             >
                 <span className="flex min-w-0 items-center gap-2">
-                    <span className="truncate font-medium">{triggerLabel}</span>
+                    <span className="truncate">{triggerLabel}</span>
                     {triggerTraits && (
                         <span className="truncate text-xs text-muted-foreground">{triggerTraits}</span>
                     )}
@@ -266,12 +266,12 @@ export const VoiceSelectorModal: React.FC<VoiceSelectorModalProps> = ({
 
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
                 <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
-                    <DialogHeader className="border-b px-6 py-4">
-                        <DialogTitle>Select Voice</DialogTitle>
+                    <DialogHeader className="border-b border-border/50 px-6 py-4">
+                        <DialogTitle className="text-base font-semibold">Select Voice</DialogTitle>
                     </DialogHeader>
 
                     {/* Filter row: Gender · Accent · Language · Search */}
-                    <div className="flex flex-wrap items-center gap-2 border-b px-6 py-3">
+                    <div className="flex flex-wrap items-center gap-2 border-b border-border/50 px-6 py-3">
                         <Select value={gender} onValueChange={setGender} disabled={manualMode}>
                             <SelectTrigger className="h-9 w-[130px]">
                                 <SelectValue placeholder="Gender" />
@@ -360,8 +360,10 @@ export const VoiceSelectorModal: React.FC<VoiceSelectorModalProps> = ({
                                             key={voice.voice_id}
                                             onClick={() => setPendingVoiceId(voice.voice_id)}
                                             className={cn(
-                                                "flex items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-accent",
-                                                isSelected ? "border-primary ring-1 ring-primary" : "border-border",
+                                                "flex items-center gap-3 rounded-lg border p-3 text-left transition-colors duration-150",
+                                                isSelected
+                                                    ? "border-primary/60 bg-primary/5"
+                                                    : "border-border/60 hover:border-border hover:bg-accent/40",
                                             )}
                                         >
                                             <span
@@ -414,7 +416,7 @@ export const VoiceSelectorModal: React.FC<VoiceSelectorModalProps> = ({
                     </div>
 
                     {/* Footer */}
-                    <div className="flex items-center justify-between gap-3 border-t px-6 py-3">
+                    <div className="flex items-center justify-between gap-3 border-t border-border/50 px-6 py-3">
                         {allowManualInput ? (
                             <Button
                                 type="button"

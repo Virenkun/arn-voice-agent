@@ -1,16 +1,8 @@
 {
   "name": "Dograh",
-  "dockerComposeFile": [
-    "../docker-compose-local.yaml",
-    "docker-compose.yml"
-  ],
+  "dockerComposeFile": ["../docker-compose-local.yaml", "docker-compose.yml"],
   "service": "workspace",
-  "runServices": [
-    "workspace",
-    "postgres",
-    "redis",
-    "minio"
-  ],
+  "runServices": ["workspace", "postgres", "redis", "minio"],
   "workspaceFolder": "/workspaces/dograh",
   "shutdownAction": "stopCompose",
   "overrideCommand": false,
@@ -23,12 +15,7 @@
   "initializeCommand": "git submodule update --init --recursive",
   "postCreateCommand": "bash .devcontainer/scripts/post-create.sh",
   "postStartCommand": "bash .devcontainer/scripts/post-start.sh",
-  "forwardPorts": [
-    5432,
-    6379,
-    9000,
-    9001
-  ],
+  "forwardPorts": [5432, 6379, 9000, 9001],
   "portsAttributes": {
     "3000": {
       "label": "Dograh UI",
@@ -63,7 +50,8 @@
         "ms-python.debugpy",
         "ms-azuretools.vscode-docker",
         "dbaeumer.vscode-eslint",
-        "esbenp.prettier-vscode"
+        "esbenp.prettier-vscode",
+        "anthropic.claude-code"
       ]
     }
   }

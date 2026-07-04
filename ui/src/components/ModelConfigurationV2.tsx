@@ -14,6 +14,7 @@ import type {
     OrganizationAiModelConfigurationV2,
 } from "@/client/types.gen";
 import { AIModelConfigurationV2Editor, type ModelConfigurationDefaultsV2 } from "@/components/AIModelConfigurationV2Editor";
+import { InlineBanner } from "@/components/InlineBanner";
 import { ServiceConfigurationForm } from "@/components/ServiceConfigurationForm";
 import {
     AlertDialog,
@@ -163,10 +164,13 @@ export default function ModelConfigurationV2({
 
     if (loading) {
         return (
-            <div className="w-full max-w-4xl mx-auto space-y-6">
-                <Skeleton className="h-10 w-80" />
-                <Skeleton className="h-28 w-full" />
-                <Skeleton className="h-96 w-full" />
+            <div className="w-full space-y-8">
+                <div className="space-y-2.5">
+                    <Skeleton className="h-8 w-72 max-w-full" />
+                    <Skeleton className="h-4 w-96 max-w-full" />
+                </div>
+                <Skeleton className="h-9 w-64 max-w-full rounded-lg" />
+                <Skeleton className="h-[420px] w-full rounded-xl" />
             </div>
         );
     }
@@ -175,42 +179,34 @@ export default function ModelConfigurationV2({
 
     if (source !== "organization_v2") {
         return (
-            <div className="w-full max-w-4xl mx-auto space-y-6">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <h1 className="text-3xl font-bold">AI Models Configuration</h1>
-                            <Badge variant="outline">
+            <div className="w-full space-y-8">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="space-y-1.5">
+                        <div className="flex items-center gap-2.5">
+                            <h1 className="text-2xl font-semibold tracking-tight">AI Models Configuration</h1>
+                            <Badge variant="outline" className="rounded-full border-border/60 px-2.5 font-medium text-muted-foreground">
                                 {source === "legacy_user_v1" ? "legacy" : "v1"}
                             </Badge>
                         </div>
-                        <p className="mt-2 text-sm text-muted-foreground">
+                        <p className="max-w-prose text-sm text-muted-foreground">
                             Configure your AI model, voice, and transcription services.{" "}
                             {docsUrl && (
-                                <a href={docsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 underline">
+                                <a href={docsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 underline underline-offset-4 decoration-muted-foreground/40 transition-colors duration-150 hover:text-foreground hover:decoration-foreground">
                                     Learn more <ExternalLink className="h-3 w-3" />
                                 </a>
                             )}
                         </p>
                     </div>
                     {source === "legacy_user_v1" && (
-                        <Button type="button" variant="outline" onClick={() => setMigrationDialogOpen(true)} disabled={migrating}>
+                        <Button type="button" variant="outline" className="shrink-0" onClick={() => setMigrationDialogOpen(true)} disabled={migrating}>
                             <RefreshCw className="mr-2 h-4 w-4" />
                             {migrating ? "Migrating..." : "Migrate to v2"}
                         </Button>
                     )}
                 </div>
 
-                {error && (
-                    <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                        {error}
-                    </div>
-                )}
-                {notice && (
-                    <div className="rounded-md border border-green-500/40 bg-green-500/10 px-4 py-3 text-sm text-green-700 dark:text-green-300">
-                        {notice}
-                    </div>
-                )}
+                {error && <InlineBanner variant="error">{error}</InlineBanner>}
+                {notice && <InlineBanner variant="success">{notice}</InlineBanner>}
 
                 <ServiceConfigurationForm
                     mode="global"
@@ -234,14 +230,14 @@ export default function ModelConfigurationV2({
     }
 
     return (
-        <div className="w-full max-w-4xl mx-auto space-y-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold">AI Models Configuration</h1>
-                    <p className="mt-2 text-sm text-muted-foreground">
+        <div className="w-full space-y-8">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1.5">
+                    <h1 className="text-2xl font-semibold tracking-tight">AI Models Configuration</h1>
+                    <p className="max-w-prose text-sm text-muted-foreground">
                         Organization-scoped model settings.{" "}
                         {docsUrl && (
-                            <a href={docsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 underline">
+                            <a href={docsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 underline underline-offset-4 decoration-muted-foreground/40 transition-colors duration-150 hover:text-foreground hover:decoration-foreground">
                                 Learn more <ExternalLink className="h-3 w-3" />
                             </a>
                         )}
@@ -249,16 +245,8 @@ export default function ModelConfigurationV2({
                 </div>
             </div>
 
-            {error && (
-                <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                    {error}
-                </div>
-            )}
-            {notice && (
-                <div className="rounded-md border border-green-500/40 bg-green-500/10 px-4 py-3 text-sm text-green-700 dark:text-green-300">
-                    {notice}
-                </div>
-            )}
+            {error && <InlineBanner variant="error">{error}</InlineBanner>}
+            {notice && <InlineBanner variant="success">{notice}</InlineBanner>}
 
             {defaults && response && (
                 <AIModelConfigurationV2Editor
