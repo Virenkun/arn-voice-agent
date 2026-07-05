@@ -11,6 +11,7 @@ from api.routes.campaign import router as campaign_router
 from api.routes.credentials import router as credentials_router
 from api.routes.folder import router as folder_router
 from api.routes.knowledge_base import router as knowledge_base_router
+from api.routes.monitoring import router as monitoring_router
 from api.routes.node_types import router as node_types_router
 from api.routes.organization import router as organization_router
 from api.routes.organization_usage import router as organization_usage_router
@@ -62,6 +63,7 @@ router.include_router(folder_router)
 router.include_router(auth_router)
 router.include_router(node_types_router)
 router.include_router(agent_stream_router)
+router.include_router(monitoring_router)
 
 for _integration_router in all_routers():
     router.include_router(_integration_router)

@@ -20,9 +20,21 @@ def create_pipeline_components(audio_config: AudioConfig):
         buffer_size=audio_config.buffer_size_bytes,
     )
 
+    # Second, low-latency buffer used only for live monitoring. Its ~150ms
+    # buffer emits mixed mono PCM several times a second so a listening
+    # supervisor hears the call in near real time (the recording buffer above
+    # flushes every few seconds, which is fine for storage but too laggy to
+    # listen to). It only mixes audio while recording, which MonitorBridge
+    # toggles on/off based on whether anyone is actually listening.
+    monitor_tap = AudioBufferProcessor(
+        sample_rate=audio_config.pipeline_sample_rate,
+        num_channels=1,
+        buffer_size=int(audio_config.pipeline_sample_rate * 2 * 0.15),
+    )
+
     context = LLMContext()
 
-    return audio_buffer, context
+    return audio_buffer, monitor_tap, context
 
 
 def build_pipeline(
@@ -37,6 +49,8 @@ def build_pipeline(
     pipeline_metrics_aggregator,
     voicemail_detector=None,
     recording_router=None,
+    monitor_tap=None,
+    supervisor_processor=None,
 ):
     """Build the main pipeline with all components.
 
@@ -48,6 +62,13 @@ def build_pipeline(
         recording_router: Optional RecordingRouterProcessor. When provided,
             inserts between callback processor and TTS to route between
             pre-recorded audio playback and dynamic TTS.
+        supervisor_processor: Optional SupervisorControlProcessor for live
+            monitoring barge-in/steer. Placed before transport.output() so its
+            broadcast_interruption() flushes the output queue and its injected
+            supervisor audio reaches the caller.
+        monitor_tap: Optional low-latency AudioBufferProcessor for live
+            monitoring. Placed after transport.output() (next to audio_buffer)
+            so it captures caller + bot + injected supervisor audio.
     """
     # Build processors list with optional voicemail detection
     processors = [
@@ -79,13 +100,22 @@ def build_pipeline(
     if voicemail_detector:
         processors.append(voicemail_detector.llm_gate())
 
+    post_tts = []
+    if supervisor_processor:
+        post_tts.append(supervisor_processor)
+
+    post_output = [audio_buffer]  # records both input and output audio
+    if monitor_tap:
+        post_output.append(monitor_tap)  # low-latency live-monitoring tap
+
     processors.extend(
         [
             llm,  # LLM
             *post_llm,
             tts,  # TTS
+            *post_tts,  # SupervisorControlProcessor (barge-in / steer)
             transport.output(),  # Transport bot output
-            audio_buffer,  # AudioBufferProcessor - records both input and output audio
+            *post_output,
             assistant_context_aggregator,  # Assistant spoken responses
             pipeline_metrics_aggregator,
         ]
@@ -103,6 +133,8 @@ def build_realtime_pipeline(
     pipeline_engine_callback_processor,
     pipeline_metrics_aggregator,
     voicemail_detector=None,
+    monitor_tap=None,
+    supervisor_processor=None,
 ):
     """Build a pipeline for realtime (speech-to-speech) LLM services.
 
@@ -139,11 +171,20 @@ def build_realtime_pipeline(
         logger.info("Adding native voicemail detector to realtime pipeline")
         processors.append(voicemail_detector.detector())
 
+    post_callback = []
+    if supervisor_processor:
+        post_callback.append(supervisor_processor)
+
+    post_output = [audio_buffer]
+    if monitor_tap:
+        post_output.append(monitor_tap)  # low-latency live-monitoring tap
+
     processors.extend(
         [
             pipeline_engine_callback_processor,
+            *post_callback,  # SupervisorControlProcessor (barge-in / steer)
             transport.output(),
-            audio_buffer,
+            *post_output,
             assistant_context_aggregator,
             pipeline_metrics_aggregator,
         ]

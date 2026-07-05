@@ -20,12 +20,19 @@ from api.services.pipecat.event_handlers import (
     register_audio_data_handler,
     register_event_handlers,
 )
+from api.services.monitoring.monitor_bridge import (
+    MonitorBridge,
+    compose_monitor_sender,
+)
 from api.services.pipecat.in_memory_buffers import InMemoryLogsBuffer
 from api.services.pipecat.pipeline_builder import (
     build_pipeline,
     build_realtime_pipeline,
     create_pipeline_components,
     create_pipeline_task,
+)
+from api.services.pipecat.supervisor_control_processor import (
+    SupervisorControlProcessor,
 )
 from api.services.pipecat.pipeline_engine_callbacks_processor import (
     PipelineEngineCallbacksProcessor,
@@ -606,6 +613,14 @@ async def _run_pipeline_impl(
     # Create node transition callback (always logs to buffer, optionally streams to WS)
     ws_sender = get_ws_sender(workflow_run_id)
 
+    # Live-monitoring bridge: fans call events + audio out to any listening
+    # supervisor over Redis. The monitor tap / supervisor processor are attached
+    # once the pipeline components exist (see attach_pipeline below). Composing
+    # the sender here means both the signaling client (if any) and monitors
+    # receive the same transcript/feedback events.
+    monitor_bridge = MonitorBridge(workflow_run_id, audio_config)
+    combined_sender = compose_monitor_sender(ws_sender, monitor_bridge)
+
     async def send_node_transition(
         node_id: str,
         node_name: str,
@@ -624,12 +639,13 @@ async def _run_pipeline_impl(
             previous_node_name=previous_node_name,
             allow_interrupt=allow_interrupt,
         )
-        # Send via WebSocket if available
-        if ws_sender:
-            try:
-                await ws_sender({**message, "node_id": node_id, "node_name": node_name})
-            except Exception as e:
-                logger.debug(f"Failed to send node transition via WebSocket: {e}")
+        # Send via WebSocket (signaling client, if any) and to live monitors
+        try:
+            await combined_sender(
+                {**message, "node_id": node_id, "node_name": node_name}
+            )
+        except Exception as e:
+            logger.debug(f"Failed to send node transition via WebSocket: {e}")
 
         # Always log to in-memory buffer (node_id/node_name injected by buffer's append)
         try:
@@ -692,7 +708,12 @@ async def _run_pipeline_impl(
     )
 
     # Create pipeline components
-    audio_buffer, context = create_pipeline_components(audio_config)
+    audio_buffer, monitor_tap, context = create_pipeline_components(audio_config)
+
+    # Supervisor control processor for live monitoring (barge-in / steer). Built
+    # here so it can be inserted into the pipeline; it reads engine.task lazily.
+    supervisor_processor = SupervisorControlProcessor(engine, audio_config)
+    monitor_bridge.attach_pipeline(monitor_tap, supervisor_processor)
 
     integration_runtime_sessions = create_runtime_sessions(
         IntegrationRuntimeContext(
@@ -889,6 +910,8 @@ async def _run_pipeline_impl(
             pipeline_engine_callback_processor,
             pipeline_metrics_aggregator,
             voicemail_detector=voicemail_detector,
+            monitor_tap=monitor_tap,
+            supervisor_processor=supervisor_processor,
         )
     else:
         pipeline = build_pipeline(
@@ -903,6 +926,8 @@ async def _run_pipeline_impl(
             pipeline_metrics_aggregator,
             voicemail_detector=voicemail_detector,
             recording_router=recording_router,
+            monitor_tap=monitor_tap,
+            supervisor_processor=supervisor_processor,
         )
 
     # Create pipeline task with audio configuration
@@ -924,9 +949,10 @@ async def _run_pipeline_impl(
     # System Prompt and Tools
     await engine.initialize()
 
-    # Add real-time feedback observer (always logs to buffer, streams to WS if available)
+    # Add real-time feedback observer (always logs to buffer, streams to WS if
+    # available, and fans out to live monitors via the composed sender)
     feedback_observer = RealtimeFeedbackObserver(
-        ws_sender=ws_sender,
+        ws_sender=combined_sender,
         logs_buffer=in_memory_logs_buffer,
     )
     task.add_observer(feedback_observer)
@@ -942,18 +968,17 @@ async def _run_pipeline_impl(
                     "latency_seconds": latency_seconds,
                 },
             }
-            if ws_sender:
-                try:
-                    ws_message = message
-                    if in_memory_logs_buffer.current_node_id:
-                        ws_message = {
-                            **message,
-                            "node_id": in_memory_logs_buffer.current_node_id,
-                            "node_name": in_memory_logs_buffer.current_node_name,
-                        }
-                    await ws_sender(ws_message)
-                except Exception as e:
-                    logger.debug(f"Failed to send latency via WebSocket: {e}")
+            try:
+                ws_message = message
+                if in_memory_logs_buffer.current_node_id:
+                    ws_message = {
+                        **message,
+                        "node_id": in_memory_logs_buffer.current_node_id,
+                        "node_name": in_memory_logs_buffer.current_node_name,
+                    }
+                await combined_sender(ws_message)
+            except Exception as e:
+                logger.debug(f"Failed to send latency via WebSocket: {e}")
             try:
                 await in_memory_logs_buffer.append(message)
             except Exception as e:
@@ -984,6 +1009,17 @@ async def _run_pipeline_impl(
 
     register_audio_data_handler(audio_buffer, workflow_run_id, in_memory_audio_buffer)
 
+    # Forward the low-latency monitor tap's mixed audio to live listeners, and
+    # start the bridge so it begins accepting monitor connections over Redis.
+    # Monitoring is best-effort: a failure here must never take down the call.
+    monitor_tap.add_event_handler("on_audio_data", monitor_bridge.on_tap_audio)
+    try:
+        await monitor_bridge.start()
+    except Exception as e:
+        logger.warning(
+            f"Live monitoring bridge failed to start for run {workflow_run_id}: {e}"
+        )
+
     try:
         # Run the pipeline
         await run_pipeline_worker(task)
@@ -997,4 +1033,5 @@ async def _run_pipeline_impl(
         # whereas engine.cleanup() runs in a pipecat event-handler task.
         await engine.close_mcp_sessions()
         await feedback_observer.cleanup()
+        await monitor_bridge.stop()
         logger.debug(f"Cleaned up context providers for workflow run {workflow_run_id}")

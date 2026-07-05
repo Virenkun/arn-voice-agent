@@ -3602,6 +3602,50 @@ export type OnboardingStateUpdate = {
 };
 
 /**
+ * OngoingCallSchema
+ *
+ * An in-progress call shown on the live monitoring page.
+ */
+export type OngoingCallSchema = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Workflow Name
+     */
+    workflow_name?: string | null;
+    /**
+     * Call Type
+     */
+    call_type?: string | null;
+    /**
+     * Mode
+     */
+    mode?: string | null;
+    /**
+     * Campaign Name
+     */
+    campaign_name?: string | null;
+    /**
+     * Phone Number
+     */
+    phone_number?: string | null;
+    /**
+     * Started At
+     */
+    started_at: string;
+    /**
+     * Duration Seconds
+     */
+    duration_seconds: number;
+};
+
+/**
  * OpenAI
  */
 export type OpenAiEmbeddingsConfiguration = {
@@ -13591,6 +13635,47 @@ export type GetNodeTypeApiV1NodeTypesNameGetResponses = {
 };
 
 export type GetNodeTypeApiV1NodeTypesNameGetResponse = GetNodeTypeApiV1NodeTypesNameGetResponses[keyof GetNodeTypeApiV1NodeTypesNameGetResponses];
+
+export type ListOngoingCallsApiV1MonitoringCallsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/monitoring/calls';
+};
+
+export type ListOngoingCallsApiV1MonitoringCallsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListOngoingCallsApiV1MonitoringCallsGetError = ListOngoingCallsApiV1MonitoringCallsGetErrors[keyof ListOngoingCallsApiV1MonitoringCallsGetErrors];
+
+export type ListOngoingCallsApiV1MonitoringCallsGetResponses = {
+    /**
+     * Response List Ongoing Calls Api V1 Monitoring Calls Get
+     *
+     * Successful Response
+     */
+    200: Array<OngoingCallSchema>;
+};
+
+export type ListOngoingCallsApiV1MonitoringCallsGetResponse = ListOngoingCallsApiV1MonitoringCallsGetResponses[keyof ListOngoingCallsApiV1MonitoringCallsGetResponses];
 
 export type HealthApiV1HealthGetData = {
     body?: never;

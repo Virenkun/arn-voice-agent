@@ -14,7 +14,7 @@ from api.db.models import (
     WorkflowModel,
     WorkflowRunModel,
 )
-from api.enums import CallType, StorageBackend
+from api.enums import CallType, StorageBackend, WorkflowRunState
 from api.schemas.workflow import WorkflowRunResponseSchema
 from api.services.workflow.run_usage_response import format_public_cost_info
 from api.utils.recording_artifacts import get_recording_storage_key
@@ -256,6 +256,35 @@ class WorkflowRunClient(BaseDBClient):
                 .where(WorkflowRunModel.id == run_id)
             )
             return result.scalars().first()
+
+    async def get_ongoing_workflow_runs(
+        self, organization_id: int, limit: int = 100, offset: int = 0
+    ) -> list[WorkflowRunModel]:
+        """List in-progress runs (live calls) for an organization.
+
+        A run is "ongoing" when its pipeline is active: state RUNNING and not yet
+        completed. Filtered by organization at the query level for tenant
+        isolation; workflow + campaign are eager-loaded for display.
+        """
+        async with self.async_session() as session:
+            query = (
+                select(WorkflowRunModel)
+                .join(WorkflowModel, WorkflowRunModel.workflow_id == WorkflowModel.id)
+                .where(
+                    WorkflowModel.organization_id == organization_id,
+                    WorkflowRunModel.state == WorkflowRunState.RUNNING.value,
+                    WorkflowRunModel.is_completed.is_(False),
+                )
+                .options(
+                    joinedload(WorkflowRunModel.workflow),
+                    joinedload(WorkflowRunModel.campaign),
+                )
+                .order_by(WorkflowRunModel.created_at.desc())
+                .limit(limit)
+                .offset(offset)
+            )
+            result = await session.execute(query)
+            return list(result.scalars().all())
 
     async def get_organization_id_by_workflow_run_id(
         self, run_id: int | None

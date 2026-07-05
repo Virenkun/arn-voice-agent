@@ -9,6 +9,7 @@ import {
   LogOut,
   MoreVertical,
   Phone,
+  Radio,
   Settings,
   TrendingUp,
 } from "lucide-react";
@@ -144,6 +145,11 @@ const NAV_SECTIONS: SidebarNavSection[] = [
   {
     label: "MANAGE",
     items: [
+      {
+        title: "Live Monitoring",
+        url: "/live-monitoring",
+        icon: Radio,
+      },
       {
         title: "Agent Runs",
         url: "/usage",
