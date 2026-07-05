@@ -43,7 +43,10 @@ class MonitorBridge:
         self._monitor_tap = None
         self._supervisor = None
 
+        # Attached listeners get the transcript; the subset in _audio_listeners
+        # have explicitly asked to hear the call, which is what gates the tap.
         self._monitors: set[str] = set()
+        self._audio_listeners: set[str] = set()
         self._recording = False
         self._seq = 0
 
@@ -124,7 +127,7 @@ class MonitorBridge:
 
     async def on_tap_audio(self, _buffer, audio, sample_rate, num_channels) -> None:
         """AudioBufferProcessor ``on_audio_data`` handler for the monitor tap."""
-        if not self.monitors_present or not audio or self._redis is None:
+        if not self._audio_listeners or not audio or self._redis is None:
             return
         self._seq += 1
         chunk = pack_pcm_chunk(audio, sample_rate, num_channels, self._seq)
@@ -169,10 +172,18 @@ class MonitorBridge:
 
         if msg_type == MonitorControl.ATTACH and monitor_id:
             self._monitors.add(monitor_id)
-            await self._sync_recording()
             return
         if msg_type == MonitorControl.DETACH and monitor_id:
             self._monitors.discard(monitor_id)
+            self._audio_listeners.discard(monitor_id)
+            await self._sync_recording()
+            return
+        if msg_type == MonitorControl.AUDIO_START and monitor_id:
+            self._audio_listeners.add(monitor_id)
+            await self._sync_recording()
+            return
+        if msg_type == MonitorControl.AUDIO_STOP and monitor_id:
+            self._audio_listeners.discard(monitor_id)
             await self._sync_recording()
             return
 
@@ -201,12 +212,12 @@ class MonitorBridge:
     async def _sync_recording(self) -> None:
         if self._monitor_tap is None:
             return
-        present = self.monitors_present
-        if present and not self._recording:
+        wants_audio = bool(self._audio_listeners)
+        if wants_audio and not self._recording:
             await self._monitor_tap.start_recording()
             self._recording = True
             logger.info(f"[monitor {self._run_id}] tap recording started")
-        elif not present and self._recording:
+        elif not wants_audio and self._recording:
             await self._monitor_tap.stop_recording()
             self._recording = False
             logger.info(f"[monitor {self._run_id}] tap recording stopped (no listeners)")
@@ -228,6 +239,7 @@ class MonitorBridge:
                         stale.append(monitor_id)
                 for monitor_id in stale:
                     self._monitors.discard(monitor_id)
+                    self._audio_listeners.discard(monitor_id)
                 if stale:
                     logger.info(
                         f"[monitor {self._run_id}] reconciled {len(stale)} stale monitor(s)"

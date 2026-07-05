@@ -65,10 +65,11 @@ export function useMonitorSocket({ workflowRunId, enabled }: UseMonitorSocketOpt
     const [status, setStatus] = useState<MonitorConnectionStatus>("idle");
     const [events, setEvents] = useState<RealtimeFeedbackEvent[]>([]);
     const [speaker, setSpeaker] = useState<"bot" | "user" | null>(null);
-    const [muted, setMutedState] = useState(false);
+    const [listening, setListening] = useState(false);
     const [bargeInActive, setBargeInActive] = useState(false);
 
     const wsRef = useRef<WebSocket | null>(null);
+    const listeningRef = useRef(false);
     const playbackCtxRef = useRef<AudioContext | null>(null);
     const gainRef = useRef<GainNode | null>(null);
     const nextStartTimeRef = useRef(0);
@@ -106,14 +107,14 @@ export function useMonitorSocket({ workflowRunId, enabled }: UseMonitorSocketOpt
         if (!playbackCtxRef.current) {
             const ctx = new AudioContext();
             const gain = ctx.createGain();
-            gain.gain.value = muted ? 0 : 1;
+            gain.gain.value = 1;
             gain.connect(ctx.destination);
             playbackCtxRef.current = ctx;
             gainRef.current = gain;
             nextStartTimeRef.current = 0;
         }
         return playbackCtxRef.current;
-    }, [muted]);
+    }, []);
 
     const playPcm = useCallback(
         (pcm: Int16Array, sampleRate: number) => {
@@ -134,9 +135,10 @@ export function useMonitorSocket({ workflowRunId, enabled }: UseMonitorSocketOpt
             source.connect(gainRef.current);
 
             const now = ctx.currentTime;
-            // Small jitter buffer; if we've fallen behind (underrun), resync.
-            if (nextStartTimeRef.current < now + 0.05) {
-                nextStartTimeRef.current = now + 0.12;
+            // Minimal jitter buffer to keep latency low; if we've fallen behind
+            // (underrun), resync just ahead of the clock.
+            if (nextStartTimeRef.current < now + 0.02) {
+                nextStartTimeRef.current = now + 0.05;
             }
             source.start(nextStartTimeRef.current);
             nextStartTimeRef.current += audioBuffer.duration;
@@ -202,7 +204,7 @@ export function useMonitorSocket({ workflowRunId, enabled }: UseMonitorSocketOpt
                     } catch (e) {
                         logger.debug("monitor: bad event json", e);
                     }
-                } else if (evt.data instanceof ArrayBuffer) {
+                } else if (evt.data instanceof ArrayBuffer && listeningRef.current) {
                     const chunk = parsePcmChunk(evt.data);
                     if (chunk) playPcm(chunk.pcm, chunk.sampleRate);
                 }
@@ -235,10 +237,23 @@ export function useMonitorSocket({ workflowRunId, enabled }: UseMonitorSocketOpt
     }, [enabled, workflowRunId]);
 
     // --- Listen controls -----------------------------------------------------
-    const setMuted = useCallback((next: boolean) => {
-        setMutedState(next);
-        if (gainRef.current) gainRef.current.gain.value = next ? 0 : 1;
-    }, []);
+    // Audio is opt-in: the call is only streamed (and only published over Redis)
+    // once the supervisor explicitly starts listening. Creating/resuming the
+    // AudioContext here runs inside the click handler, satisfying autoplay policy.
+    const startListening = useCallback(() => {
+        const ctx = ensurePlaybackContext();
+        if (ctx?.state === "suspended") void ctx.resume();
+        nextStartTimeRef.current = 0;
+        listeningRef.current = true;
+        setListening(true);
+        sendControl({ type: "audio_start" });
+    }, [ensurePlaybackContext, sendControl]);
+
+    const stopListening = useCallback(() => {
+        listeningRef.current = false;
+        setListening(false);
+        sendControl({ type: "audio_stop" });
+    }, [sendControl]);
 
     // --- Supervisor controls (Phase 2) --------------------------------------
     const startMicStreaming = useCallback(async () => {
@@ -304,8 +319,9 @@ export function useMonitorSocket({ workflowRunId, enabled }: UseMonitorSocketOpt
         status,
         events,
         speaker,
-        muted,
-        setMuted,
+        listening,
+        startListening,
+        stopListening,
         bargeInActive,
         startBargeIn,
         stopBargeIn,

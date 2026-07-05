@@ -27,8 +27,10 @@ PCM_HEADER_SIZE = struct.calcsize(_HEADER_FORMAT)  # 12 bytes
 class MonitorControl:
     """``type`` values for JSON control messages on the control_up channel."""
 
-    ATTACH = "attach"
+    ATTACH = "attach"  # listener connected (transcript flows)
     DETACH = "detach"
+    AUDIO_START = "audio_start"  # listener wants to hear the call audio
+    AUDIO_STOP = "audio_stop"
     BARGE_IN_START = "barge_in_start"
     BARGE_IN_STOP = "barge_in_stop"
     SET_MODE = "set_mode"  # payload: {"mode": "barge" | "whisper"}

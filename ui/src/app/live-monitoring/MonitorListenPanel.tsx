@@ -1,13 +1,13 @@
 "use client";
 
 import {
+    Headphones,
     Loader2,
     Mic,
     MicOff,
     Radio,
     Send,
     Volume2,
-    VolumeX,
 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
@@ -30,8 +30,9 @@ export function MonitorListenPanel({ workflowRunId, enabled }: MonitorListenPane
         status,
         events,
         speaker,
-        muted,
-        setMuted,
+        listening,
+        startListening,
+        stopListening,
         bargeInActive,
         startBargeIn,
         stopBargeIn,
@@ -80,14 +81,20 @@ export function MonitorListenPanel({ workflowRunId, enabled }: MonitorListenPane
                     ) : null}
                 </div>
                 <Button
-                    variant="ghost"
+                    variant={listening ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setMuted(!muted)}
+                    onClick={() => (listening ? stopListening() : startListening())}
                     disabled={!connected}
-                    aria-label={muted ? "Unmute" : "Mute"}
+                    aria-label={listening ? "Stop listening" : "Listen to call"}
                 >
-                    {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-                    <span className="ml-1">{muted ? "Muted" : "Listening"}</span>
+                    {listening ? (
+                        <Volume2 className="h-4 w-4" />
+                    ) : (
+                        <Headphones className="h-4 w-4" />
+                    )}
+                    <span className="ml-1">
+                        {listening ? "Stop audio" : "Listen to call"}
+                    </span>
                 </Button>
             </div>
 

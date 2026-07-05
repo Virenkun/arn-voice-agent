@@ -20,16 +20,16 @@ def create_pipeline_components(audio_config: AudioConfig):
         buffer_size=audio_config.buffer_size_bytes,
     )
 
-    # Second, low-latency buffer used only for live monitoring. Its ~150ms
-    # buffer emits mixed mono PCM several times a second so a listening
-    # supervisor hears the call in near real time (the recording buffer above
-    # flushes every few seconds, which is fine for storage but too laggy to
-    # listen to). It only mixes audio while recording, which MonitorBridge
-    # toggles on/off based on whether anyone is actually listening.
+    # Second, low-latency buffer used only for live monitoring. Its ~60ms
+    # buffer emits mixed mono PCM ~16x/second so a listening supervisor hears
+    # the call in near real time (the recording buffer above flushes every few
+    # seconds, which is fine for storage but too laggy to listen to). It only
+    # mixes audio while recording, which MonitorBridge toggles on/off based on
+    # whether anyone is actually listening.
     monitor_tap = AudioBufferProcessor(
         sample_rate=audio_config.pipeline_sample_rate,
         num_channels=1,
-        buffer_size=int(audio_config.pipeline_sample_rate * 2 * 0.15),
+        buffer_size=int(audio_config.pipeline_sample_rate * 2 * 0.06),
     )
 
     context = LLMContext()
