@@ -147,6 +147,13 @@ export function useMonitorSocket({ workflowRunId, enabled }: UseMonitorSocketOpt
     );
 
     const handleEvent = useCallback((event: RealtimeFeedbackEvent) => {
+        // Full conversation-so-far for a monitor that just joined — replace the
+        // timeline with it, then keep appending live events after.
+        if (event.type === "monitor-snapshot") {
+            const snapshot = (event as unknown as { events?: RealtimeFeedbackEvent[] }).events;
+            if (Array.isArray(snapshot)) setEvents(snapshot.slice(-1000));
+            return;
+        }
         if (event.type === "rtf-bot-started-speaking") {
             setSpeaker("bot");
             return;
@@ -156,7 +163,11 @@ export function useMonitorSocket({ workflowRunId, enabled }: UseMonitorSocketOpt
             return;
         }
         if (event.type === "rtf-user-transcription" && event.payload?.final === false) {
+            // Interim transcripts drive the "speaking" indicator but aren't kept
+            // in the timeline — otherwise every partial spawns its own bubble and
+            // the live tail wouldn't match the finalized-turns backlog.
             setSpeaker("user");
+            return;
         }
         // Accumulate everything the transcript adapter understands (it ignores
         // the speaking/mute control events above harmlessly).

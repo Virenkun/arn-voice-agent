@@ -17,6 +17,7 @@ from loguru import logger
 
 from api.constants import REDIS_URL
 from api.services.monitoring.monitor_protocol import (
+    MONITOR_SNAPSHOT_EVENT,
     MonitorControl,
     MonitorRedisChannels,
 )
@@ -91,7 +92,16 @@ class MonitorSession:
                 if channel == self._audio_down_b:
                     await websocket.send_bytes(data)
                 elif channel == self._events_down_b:
-                    await websocket.send_json(json.loads(data.decode()))
+                    obj = json.loads(data.decode())
+                    # Backlog snapshots are addressed to one monitor; every
+                    # session sees the broadcast, so drop snapshots meant for
+                    # someone else.
+                    if (
+                        obj.get("type") == MONITOR_SNAPSHOT_EVENT
+                        and obj.get("monitor_id") != self._monitor_id
+                    ):
+                        continue
+                    await websocket.send_json(obj)
             except Exception as e:
                 logger.debug(f"[monitor {self._run_id}] downstream send failed: {e}")
                 return

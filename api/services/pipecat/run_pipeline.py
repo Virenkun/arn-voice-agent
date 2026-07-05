@@ -618,7 +618,9 @@ async def _run_pipeline_impl(
     # once the pipeline components exist (see attach_pipeline below). Composing
     # the sender here means both the signaling client (if any) and monitors
     # receive the same transcript/feedback events.
-    monitor_bridge = MonitorBridge(workflow_run_id, audio_config)
+    monitor_bridge = MonitorBridge(
+        workflow_run_id, audio_config, logs_buffer=in_memory_logs_buffer
+    )
     combined_sender = compose_monitor_sender(ws_sender, monitor_bridge)
 
     async def send_node_transition(

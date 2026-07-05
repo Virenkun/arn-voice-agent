@@ -23,6 +23,11 @@ _HEADER_MAGIC = b"DG"
 _HEADER_FORMAT = "<2sIHI"
 PCM_HEADER_SIZE = struct.calcsize(_HEADER_FORMAT)  # 12 bytes
 
+# Downstream JSON event carrying the conversation-so-far to a newly-joined
+# monitor (targeted at one monitor_id) so it sees the full call, not just what
+# happens after it connected.
+MONITOR_SNAPSHOT_EVENT = "monitor-snapshot"
+
 
 class MonitorControl:
     """``type`` values for JSON control messages on the control_up channel."""

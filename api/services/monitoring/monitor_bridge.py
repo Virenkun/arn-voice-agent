@@ -23,6 +23,7 @@ from loguru import logger
 
 from api.constants import REDIS_URL
 from api.services.monitoring.monitor_protocol import (
+    MONITOR_SNAPSHOT_EVENT,
     MonitorControl,
     MonitorRedisChannels,
     pack_pcm_chunk,
@@ -37,9 +38,10 @@ _RECONCILE_INTERVAL_SECONDS = 10.0
 class MonitorBridge:
     """Bridges one live call to any monitors listening over Redis."""
 
-    def __init__(self, workflow_run_id: int, audio_config):
+    def __init__(self, workflow_run_id: int, audio_config, logs_buffer=None):
         self._run_id = workflow_run_id
         self._audio_config = audio_config
+        self._logs_buffer = logs_buffer
         self._monitor_tap = None
         self._supervisor = None
 
@@ -145,6 +147,31 @@ class MonitorBridge:
         except Exception as e:
             logger.debug(f"[monitor {self._run_id}] event publish failed: {e}")
 
+    async def _send_snapshot(self, monitor_id: str) -> None:
+        """Send the conversation-so-far to a monitor that just joined.
+
+        Published on the shared events channel but targeted at one monitor_id;
+        each MonitorSession only forwards a snapshot addressed to itself. The
+        events come from the call's logs buffer (finalized turns), which is
+        exactly the shape the transcript view already renders.
+        """
+        if self._redis is None or self._logs_buffer is None:
+            return
+        try:
+            events = self._logs_buffer.get_events()
+        except Exception as e:
+            logger.debug(f"[monitor {self._run_id}] snapshot read failed: {e}")
+            return
+        message = {
+            "type": MONITOR_SNAPSHOT_EVENT,
+            "monitor_id": monitor_id,
+            "events": events,
+        }
+        try:
+            await self._redis.publish(self._events_down, json.dumps(message).encode())
+        except Exception as e:
+            logger.debug(f"[monitor {self._run_id}] snapshot publish failed: {e}")
+
     # --- Upstream (monitor -> call) -----------------------------------------
 
     async def _listen_loop(self) -> None:
@@ -172,6 +199,7 @@ class MonitorBridge:
 
         if msg_type == MonitorControl.ATTACH and monitor_id:
             self._monitors.add(monitor_id)
+            await self._send_snapshot(monitor_id)
             return
         if msg_type == MonitorControl.DETACH and monitor_id:
             self._monitors.discard(monitor_id)
