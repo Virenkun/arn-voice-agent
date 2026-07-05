@@ -287,6 +287,8 @@ async def _run_pipeline_telephony_impl(
             audio_config=audio_config,
             workflow_run=workflow_run,
             resolved_user_config=user_config,
+            # Live monitoring is telephony-only.
+            enable_monitoring=True,
         )
     except Exception as e:
         logger.error(
@@ -429,6 +431,7 @@ async def _run_pipeline_impl(
     user_provider_id: str | None = None,
     workflow_run=None,
     resolved_user_config=None,
+    enable_monitoring: bool = False,
 ) -> None:
     """
     Run the pipeline with the given transport and configuration
@@ -613,13 +616,16 @@ async def _run_pipeline_impl(
     # Create node transition callback (always logs to buffer, optionally streams to WS)
     ws_sender = get_ws_sender(workflow_run_id)
 
-    # Live-monitoring bridge: fans call events + audio out to any listening
-    # supervisor over Redis. The monitor tap / supervisor processor are attached
-    # once the pipeline components exist (see attach_pipeline below). Composing
-    # the sender here means both the signaling client (if any) and monitors
-    # receive the same transcript/feedback events.
-    monitor_bridge = MonitorBridge(
-        workflow_run_id, audio_config, logs_buffer=in_memory_logs_buffer
+    # Live-monitoring bridge (telephony only): fans call events + audio out to
+    # any listening supervisor over Redis. The monitor tap / supervisor
+    # processor are attached once the pipeline components exist (see
+    # attach_pipeline below). For non-telephony calls (e.g. browser voice test)
+    # the bridge is None and combined_sender is a thin pass-through to ws_sender,
+    # so nothing about monitoring touches those pipelines.
+    monitor_bridge = (
+        MonitorBridge(workflow_run_id, audio_config, logs_buffer=in_memory_logs_buffer)
+        if enable_monitoring
+        else None
     )
     combined_sender = compose_monitor_sender(ws_sender, monitor_bridge)
 
@@ -712,10 +718,15 @@ async def _run_pipeline_impl(
     # Create pipeline components
     audio_buffer, monitor_tap, context = create_pipeline_components(audio_config)
 
-    # Supervisor control processor for live monitoring (barge-in / steer). Built
-    # here so it can be inserted into the pipeline; it reads engine.task lazily.
-    supervisor_processor = SupervisorControlProcessor(engine, audio_config)
-    monitor_bridge.attach_pipeline(monitor_tap, supervisor_processor)
+    # Supervisor control processor + monitor tap are only inserted into the
+    # pipeline when monitoring is enabled (telephony). Otherwise they stay out of
+    # the pipeline entirely, so non-telephony calls carry zero monitoring cost.
+    if enable_monitoring:
+        supervisor_processor = SupervisorControlProcessor(engine, audio_config)
+        monitor_bridge.attach_pipeline(monitor_tap, supervisor_processor)
+    else:
+        supervisor_processor = None
+        monitor_tap = None
 
     integration_runtime_sessions = create_runtime_sessions(
         IntegrationRuntimeContext(
@@ -1013,14 +1024,16 @@ async def _run_pipeline_impl(
 
     # Forward the low-latency monitor tap's mixed audio to live listeners, and
     # start the bridge so it begins accepting monitor connections over Redis.
-    # Monitoring is best-effort: a failure here must never take down the call.
-    monitor_tap.add_event_handler("on_audio_data", monitor_bridge.on_tap_audio)
-    try:
-        await monitor_bridge.start()
-    except Exception as e:
-        logger.warning(
-            f"Live monitoring bridge failed to start for run {workflow_run_id}: {e}"
-        )
+    # Only wired for telephony (enable_monitoring); best-effort — a failure here
+    # must never take down the call.
+    if monitor_bridge is not None:
+        monitor_tap.add_event_handler("on_audio_data", monitor_bridge.on_tap_audio)
+        try:
+            await monitor_bridge.start()
+        except Exception as e:
+            logger.warning(
+                f"Live monitoring bridge failed to start for run {workflow_run_id}: {e}"
+            )
 
     try:
         # Run the pipeline
@@ -1035,5 +1048,6 @@ async def _run_pipeline_impl(
         # whereas engine.cleanup() runs in a pipecat event-handler task.
         await engine.close_mcp_sessions()
         await feedback_observer.cleanup()
-        await monitor_bridge.stop()
+        if monitor_bridge is not None:
+            await monitor_bridge.stop()
         logger.debug(f"Cleaned up context providers for workflow run {workflow_run_id}")

@@ -73,6 +73,13 @@ async def monitor_call(
     if run.state != WorkflowRunState.RUNNING.value or run.is_completed:
         await websocket.close(code=1008, reason="Call is not active")
         return
+    # Monitoring is for real telephony calls only, not browser voice-test or
+    # text-chat runs.
+    from api.services.telephony import registry as telephony_registry
+
+    if run.mode not in set(telephony_registry.names()):
+        await websocket.close(code=1008, reason="Call is not monitorable")
+        return
 
     await websocket.accept()
     try:

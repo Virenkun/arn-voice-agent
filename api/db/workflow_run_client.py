@@ -260,12 +260,20 @@ class WorkflowRunClient(BaseDBClient):
     async def get_ongoing_workflow_runs(
         self, organization_id: int, limit: int = 100, offset: int = 0
     ) -> list[WorkflowRunModel]:
-        """List in-progress runs (live calls) for an organization.
+        """List in-progress telephony calls for an organization.
 
         A run is "ongoing" when its pipeline is active: state RUNNING and not yet
-        completed. Filtered by organization at the query level for tenant
-        isolation; workflow + campaign are eager-loaded for display.
+        completed. Restricted to real telephony providers (``mode`` in the
+        telephony registry) so browser voice-test and text-chat runs don't show
+        up as monitorable calls. Filtered by organization at the query level for
+        tenant isolation; workflow + campaign are eager-loaded for display.
         """
+        # Deferred import to avoid an import cycle at module load: the telephony
+        # registry pulls in provider packages.
+        from api.services.telephony import registry as telephony_registry
+
+        telephony_modes = list(telephony_registry.names())
+
         async with self.async_session() as session:
             query = (
                 select(WorkflowRunModel)
@@ -274,6 +282,7 @@ class WorkflowRunClient(BaseDBClient):
                     WorkflowModel.organization_id == organization_id,
                     WorkflowRunModel.state == WorkflowRunState.RUNNING.value,
                     WorkflowRunModel.is_completed.is_(False),
+                    WorkflowRunModel.mode.in_(telephony_modes),
                 )
                 .options(
                     joinedload(WorkflowRunModel.workflow),

@@ -58,6 +58,13 @@ class MonitorBridge:
         self._listen_task: Optional[asyncio.Task] = None
         self._reconcile_task: Optional[asyncio.Task] = None
 
+        # Outbound publishing runs on a background task so the pipeline's frame
+        # path (the RealtimeFeedbackObserver runs inline on every frame push)
+        # never waits on a Redis round-trip. Bounded + drop-on-full so a slow or
+        # stalled Redis can never apply backpressure to the live call.
+        self._publish_task: Optional[asyncio.Task] = None
+        self._publish_queue: Optional[asyncio.Queue] = None
+
         self._audio_down = MonitorRedisChannels.audio_down(workflow_run_id)
         self._events_down = MonitorRedisChannels.events_down(workflow_run_id)
         self._control_up = MonitorRedisChannels.control_up(workflow_run_id)
@@ -88,16 +95,19 @@ class MonitorBridge:
             channels.append(self._audio_up)
         await self._pubsub.subscribe(*channels)
 
+        self._publish_queue = asyncio.Queue(maxsize=512)
+        self._publish_task = asyncio.create_task(self._publish_loop())
         self._listen_task = asyncio.create_task(self._listen_loop())
         self._reconcile_task = asyncio.create_task(self._reconcile_loop())
         logger.debug(f"[monitor {self._run_id}] bridge started")
 
     async def stop(self) -> None:
         """Cancel tasks, stop the tap, and close Redis connections."""
-        for task in (self._listen_task, self._reconcile_task):
+        tasks = (self._listen_task, self._reconcile_task, self._publish_task)
+        for task in tasks:
             if task is not None:
                 task.cancel()
-        for task in (self._listen_task, self._reconcile_task):
+        for task in tasks:
             if task is not None:
                 try:
                     await task
@@ -129,23 +139,49 @@ class MonitorBridge:
 
     async def on_tap_audio(self, _buffer, audio, sample_rate, num_channels) -> None:
         """AudioBufferProcessor ``on_audio_data`` handler for the monitor tap."""
-        if not self._audio_listeners or not audio or self._redis is None:
+        if not self._audio_listeners or not audio:
             return
         self._seq += 1
         chunk = pack_pcm_chunk(audio, sample_rate, num_channels, self._seq)
-        try:
-            await self._redis.publish(self._audio_down, chunk)
-        except Exception as e:
-            logger.debug(f"[monitor {self._run_id}] audio publish failed: {e}")
+        self._enqueue(self._audio_down, chunk)
 
     async def publish_event(self, event: dict) -> None:
-        """Publish a transcript/feedback event to attached monitors."""
-        if not self.monitors_present or self._redis is None:
+        """Hand a transcript/feedback event off to the background publisher.
+
+        Called inline from the pipeline's frame path (via the feedback
+        observer), so this must not block — it only enqueues.
+        """
+        if not self.monitors_present:
+            return
+        self._enqueue(self._events_down, json.dumps(event).encode())
+
+    def _enqueue(self, channel: str, data: bytes) -> None:
+        """Queue a message for the background publisher; drop if it's backed up.
+
+        Dropping (rather than awaiting) guarantees monitoring can never slow the
+        live call, even if Redis is slow. Losing a live audio/transcript frame
+        under backpressure is an acceptable trade for a lag-free call.
+        """
+        queue = self._publish_queue
+        if queue is None:
             return
         try:
-            await self._redis.publish(self._events_down, json.dumps(event).encode())
-        except Exception as e:
-            logger.debug(f"[monitor {self._run_id}] event publish failed: {e}")
+            queue.put_nowait((channel, data))
+        except asyncio.QueueFull:
+            logger.debug(f"[monitor {self._run_id}] publish queue full; dropping frame")
+
+    async def _publish_loop(self) -> None:
+        try:
+            while True:
+                channel, data = await self._publish_queue.get()
+                if self._redis is None:
+                    continue
+                try:
+                    await self._redis.publish(channel, data)
+                except Exception as e:
+                    logger.debug(f"[monitor {self._run_id}] publish failed: {e}")
+        except asyncio.CancelledError:
+            raise
 
     async def _send_snapshot(self, monitor_id: str) -> None:
         """Send the conversation-so-far to a monitor that just joined.
@@ -167,10 +203,7 @@ class MonitorBridge:
             "monitor_id": monitor_id,
             "events": events,
         }
-        try:
-            await self._redis.publish(self._events_down, json.dumps(message).encode())
-        except Exception as e:
-            logger.debug(f"[monitor {self._run_id}] snapshot publish failed: {e}")
+        self._enqueue(self._events_down, json.dumps(message).encode())
 
     # --- Upstream (monitor -> call) -----------------------------------------
 
@@ -277,13 +310,15 @@ class MonitorBridge:
             raise
 
 
-def compose_monitor_sender(ws_sender, bridge: "MonitorBridge"):
+def compose_monitor_sender(ws_sender, bridge: Optional["MonitorBridge"]):
     """Wrap the call's WebSocket sender so events also reach live monitors.
 
     ``ws_sender`` is the existing per-run signaling-socket sender (``None`` for
-    telephony calls, which have no controlling browser). The returned callable
-    forwards each event to it (when present) and to the monitor bridge, which
-    republishes to any attached listeners over Redis.
+    telephony calls, which have no controlling browser). ``bridge`` is ``None``
+    when monitoring is disabled for this call (e.g. browser voice-test calls) —
+    in that case this is a thin, None-safe pass-through to ``ws_sender``. When a
+    bridge is present each event is also handed to it (non-blocking) for fan-out
+    to any attached listeners.
     """
 
     async def send(message: dict) -> None:
@@ -292,6 +327,7 @@ def compose_monitor_sender(ws_sender, bridge: "MonitorBridge"):
                 await ws_sender(message)
             except Exception as e:
                 logger.debug(f"ws_sender failed: {e}")
-        await bridge.publish_event(message)
+        if bridge is not None:
+            await bridge.publish_event(message)
 
     return send
